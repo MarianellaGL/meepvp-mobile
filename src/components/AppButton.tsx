@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import { ScoreButton } from '@marianellagl/scoreui';
+import { ScoreButton } from '@decodadev02/scoreui';
 
 type Props = {
   children: ReactNode;

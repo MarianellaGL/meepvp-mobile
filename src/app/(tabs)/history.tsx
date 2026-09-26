@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { ScoreGameCard } from '@marianellagl/scoreui';
+import { ScoreGameCard } from '@decodadev02/scoreui';
 import { router } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';

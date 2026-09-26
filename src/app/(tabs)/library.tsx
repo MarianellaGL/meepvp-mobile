@@ -1,6 +1,6 @@
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ScoreBadge, ScoreSkeleton } from '@marianellagl/scoreui';
+import { ScoreBadge, ScoreSkeleton } from '@decodadev02/scoreui';
 import { router } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';

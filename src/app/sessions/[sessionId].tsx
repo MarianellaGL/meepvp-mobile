@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreCheckbox, ScoreStepper, ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { ScoreCheckbox, ScoreStepper, ScoreTextField as TextInput } from '@decodadev02/scoreui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

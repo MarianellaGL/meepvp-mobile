@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { ScoreUIProvider } from '@marianellagl/scoreui';
+import { ScoreUIProvider } from '@decodadev02/scoreui';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 

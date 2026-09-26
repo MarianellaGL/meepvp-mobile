@@ -1,4 +1,4 @@
-import { ScoreBottomNav, type ScoreTab } from '@marianellagl/scoreui';
+import { ScoreBottomNav, type ScoreTab } from '@decodadev02/scoreui';
 import { Tabs, router } from 'expo-router';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';

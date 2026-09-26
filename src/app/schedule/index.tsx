@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { ScoreCalendar, ScoreDropdown, ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { ScoreCalendar, ScoreDropdown, ScoreTextField as TextInput } from '@decodadev02/scoreui';
 import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

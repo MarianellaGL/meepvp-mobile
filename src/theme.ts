@@ -1,4 +1,4 @@
-import { scoreUITheme, tokens } from '@marianellagl/scoreui';
+import { scoreUITheme, tokens } from '@decodadev02/scoreui';
 
 const palette = tokens.color;
 

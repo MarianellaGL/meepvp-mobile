@@ -1,16 +1,11 @@
 # TableScore mobile
 
-The app currently uses a local build of `@marianellagl/scoreui` from the sibling `scoreUI` repository. Keep both repositories in the same parent directory.
+The app uses the published [`@decodadev02/scoreui`](https://www.npmjs.com/package/@decodadev02/scoreui) package for its shared design system.
 
-After changing scoreUI, rebuild and refresh the local package snapshot:
+Install dependencies with pnpm:
 
 ```sh
-cd ../scoreUI
-pnpm build:package
-cd ../tablescore-mobile
 pnpm install --ignore-scripts
 ```
 
-Once scoreUI is published, replace the `file:../scoreUI/package-dist` dependency with the published version and update the lockfile.
-
-The `--ignore-scripts` flag avoids a pnpm policy failure for an unrelated dependency (`unrs-resolver`). The app's Android and web exports work with this local install.
+The `--ignore-scripts` flag avoids a pnpm policy failure for an unrelated dependency (`unrs-resolver`). The app does not need that build script for its verified Android and web exports.
