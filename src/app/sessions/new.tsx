@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, Chip, IconButton, RadioButton, Text, TextInput } from 'react-native-paper';
+import { ScoreDropdown, ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { Chip, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function NewSessionScreen() {
   const { ruleId, players: plannedPlayers, planId } = useLocalSearchParams<{ ruleId?: string; players?: string; planId?: string }>();
@@ -57,14 +59,7 @@ export default function NewSessionScreen() {
         <View style={styles.sectionHeader}><Text style={styles.sectionLabel}>01 / SCORING SHEET</Text><Text style={styles.count}>{rules.length} available</Text></View>
         <View style={styles.card}>
           {rules.length ? (
-            <RadioButton.Group value={selectedRuleId} onValueChange={setSelectedRuleId}>
-              {rules.map((rule) => (
-                <Pressable key={rule.id} accessibilityRole="radio" accessibilityState={{ checked: selectedRuleId === rule.id }} onPress={() => setSelectedRuleId(rule.id)} style={styles.ruleRow}>
-                  <View style={styles.ruleText}><Text style={styles.ruleName}>{rule.gameName}</Text><Text style={styles.ruleDescription}>{rule.name} · {rule.fields.length} fields</Text></View>
-                  <RadioButton value={rule.id} />
-                </Pressable>
-              ))}
-            </RadioButton.Group>
+            <ScoreDropdown label="Scoring sheet" value={selectedRuleId} onChange={setSelectedRuleId} options={rules.map((rule) => ({ value: rule.id, label: `${rule.gameName} · ${rule.name} (${rule.fields.length} fields)` }))} />
           ) : (
             <View style={styles.emptyRules}><Text style={styles.emptyTitle}>No scoring sheets yet</Text><Text style={styles.emptyCopy}>Create one first, then come back to start the game.</Text><Button mode="outlined" icon="plus" onPress={() => router.push('/rules/new')}>Create scoring sheet</Button></View>
           )}

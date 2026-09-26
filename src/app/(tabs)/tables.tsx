@@ -1,11 +1,13 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ScoreBadge, ScoreGameCard, ScoreSkeleton } from '@marianellagl/scoreui';
 import { router } from 'expo-router';
-import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function TablesScreen() {
   const { table, session, selfPlayerId, myPlayerName, username, isRestoring, hasRestored, error, restore } = useTableScoreStore();
@@ -21,12 +23,12 @@ export default function TablesScreen() {
         <Button mode="outlined" icon="calendar-plus" onPress={() => router.push('/schedule')}>Schedule a game</Button>
 
         {!hasRestored || isRestoring ? (
-          <ActivityIndicator size="large" style={styles.loader} />
+          <ScoreSkeleton variant="card" />
         ) : table ? (
           <View style={styles.tableCard}>
             <View style={styles.cardHeader}>
-              <View style={styles.icon}><MaterialCommunityIcons name="table-furniture" size={29} color={colors.paper} /></View>
-              <View style={styles.status}><View style={styles.statusDot} /><Text style={styles.statusText}>ACTIVE TABLE</Text></View>
+              <View style={styles.icon}><MaterialCommunityIcons name="table-furniture" size={29} color={colors.canvas} /></View>
+              <ScoreBadge label="ACTIVE TABLE" tone="success" />
             </View>
             <Text style={styles.tableName}>{table.name || 'Game night'}</Text>
             <Text style={styles.cardCopy}>Share this code with everyone around the table.</Text>
@@ -43,12 +45,7 @@ export default function TablesScreen() {
                 </View>
               </View>
             )}
-            {session && selfPlayer && (
-              <View style={styles.myScoreRow}>
-                <Text style={styles.myScoreLabel}>YOUR SCORE · {selfPlayer.name}</Text>
-                <Text style={styles.myScoreValue}>{myTotal} pts</Text>
-              </View>
-            )}
+            {session && selfPlayer && <ScoreGameCard title={table.name || 'Game night'} detail={`${session.players.length} players · ${selfPlayer.name}`} score={myTotal} label={session.status === 'finished' ? 'LAST GAME' : 'YOUR SCORE'} featured />}
             <Button mode="contained" icon="arrow-right" onPress={() => session ? router.push(`/sessions/${session.id}`) : router.push('/sessions/new')}>
               {session ? 'Open game' : 'Start a game'}
             </Button>

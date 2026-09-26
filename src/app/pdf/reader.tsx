@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Button, IconButton, Text, TextInput } from 'react-native-paper';
+import { ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, type PDFExtract } from '@/lib/api';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function PDFReaderScreen() {
   const { gameId, game } = useLocalSearchParams<{ gameId?: string; game?: string }>();

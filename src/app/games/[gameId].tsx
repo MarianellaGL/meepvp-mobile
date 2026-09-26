@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Button, IconButton, Text } from 'react-native-paper';
+import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, type GameRules } from '@/lib/api';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function GameRulesScreen() {
   const { gameId, name } = useLocalSearchParams<{ gameId: string; name?: string }>();
@@ -65,7 +66,7 @@ export default function GameRulesScreen() {
         </View>
 
         <View style={styles.summaryCard}>
-          <View style={styles.summaryIcon}><MaterialCommunityIcons name="forum-outline" size={27} color={colors.paper} /></View>
+          <View style={styles.summaryIcon}><MaterialCommunityIcons name="forum-outline" size={27} color={colors.forest} /></View>
           <Text style={styles.summaryCount}>{rules?.status === 'ready' ? rules.totalThreads : '—'}</Text>
           <Text style={styles.summaryLabel}>RULES DISCUSSIONS</Text>
           <Text style={styles.summaryCopy}>Community conversations can clarify tricky situations. Check the rulebook for official rules.</Text>
@@ -106,11 +107,11 @@ const styles = StyleSheet.create({
   topSpacer: { width: 40 },
   title: { color: colors.ink, fontSize: 32, fontWeight: '800', letterSpacing: -1.1, marginTop: 6 },
   subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21, marginBottom: 7 },
-  summaryCard: { alignItems: 'flex-start', backgroundColor: colors.forest, borderRadius: 24, padding: 20 },
-  summaryIcon: { alignItems: 'center', backgroundColor: '#3B6A60', borderRadius: 15, height: 48, justifyContent: 'center', marginBottom: 12, width: 48 },
-  summaryCount: { color: colors.paper, fontSize: 42, fontWeight: '800', lineHeight: 48 },
-  summaryLabel: { color: colors.orangePale, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
-  summaryCopy: { color: '#D5E7DE', fontSize: 13, lineHeight: 19, marginTop: 12 },
+  summaryCard: { alignItems: 'flex-start', backgroundColor: colors.paper, borderColor: colors.forest, borderRadius: 24, borderWidth: 1, padding: 20 },
+  summaryIcon: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 15, height: 48, justifyContent: 'center', marginBottom: 12, width: 48 },
+  summaryCount: { color: colors.ink, fontSize: 42, fontWeight: '800', lineHeight: 48 },
+  summaryLabel: { color: colors.forest, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
+  summaryCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 12 },
   sectionHeader: { marginTop: 15 },
   eyebrow: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
   heading: { color: colors.ink, fontWeight: '800', marginTop: 3 },

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, IconButton, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { ScoreSwitch, ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { IconButton, SegmentedButtons, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CreateScoringRule, FieldKind } from '@/lib/api';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 type DraftField = { name: string; kind: FieldKind; pointsPerUnit: string };
 const emptyField = (): DraftField => ({ name: '', kind: 'checkbox', pointsPerUnit: '1' });
@@ -77,8 +79,7 @@ export default function NewRuleScreen() {
         </View>
 
         <View style={styles.shareCard}>
-          <View style={styles.shareText}><Text style={styles.shareTitle}>Share with the community</Text><Text style={styles.shareCopy}>Let others use this sheet.</Text></View>
-          <Switch value={isPublic} onValueChange={setIsPublic} />
+          <ScoreSwitch label="Share this sheet" value={isPublic} onChange={setIsPublic} />
         </View>
 
         <View style={styles.sectionHeader}><View><Text style={styles.sectionLabel}>BUILD THE SCORE</Text><Text variant="headlineSmall" style={styles.heading}>Score fields</Text></View><Text style={styles.fieldCount}>{fields.length} total</Text></View>

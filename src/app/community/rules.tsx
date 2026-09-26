@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Button, IconButton, Text, TextInput } from 'react-native-paper';
+import { ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, type ScoringRule } from '@/lib/api';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function CommunityRulesScreen() {
   const { game, gameId, planId } = useLocalSearchParams<{ game?: string; gameId?: string; planId?: string }>();

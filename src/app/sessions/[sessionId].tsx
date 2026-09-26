@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Button, Checkbox, IconButton, Text, TextInput } from 'react-native-paper';
+import { ScoreCheckbox, ScoreStepper, ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 function QuickPoints({ playerId, manualPoints, disabled, onAdjust }: { playerId: string; manualPoints: number; disabled: boolean; onAdjust: (playerId: string, delta: number) => Promise<void> }) {
   const [amount, setAmount] = useState('1');
@@ -126,7 +128,7 @@ export default function ScoringScreen() {
 
         <View style={styles.scoreboard}>
           <View style={styles.scoreboardHeading}>
-            <MaterialCommunityIcons name="trophy-outline" size={22} color={colors.orangePale} />
+            <MaterialCommunityIcons name="trophy-outline" size={22} color={colors.forest} />
             <Text style={styles.scoreboardTitle}>Scoreboard</Text>
           </View>
           <View style={styles.totalGrid}>
@@ -153,28 +155,12 @@ export default function ScoringScreen() {
               <Text style={styles.playerTotal}>{session.totals.find((item) => item.playerId === player.id)?.total ?? 0} pts</Text>
             </View>
             {selfPlayer?.id !== player.id && <QuickPoints playerId={player.id} manualPoints={session.manualPoints?.[player.id] ?? 0} disabled={controlsDisabled} onAdjust={adjustPoints} />}
-            {rule.fields.map((field, index) => {
+            {rule.fields.map((field) => {
               const value = session.values[player.id]?.[field.id] ?? 0;
-              return (
-                <View key={field.id} style={[styles.fieldRow, index === rule.fields.length - 1 && styles.lastField]}>
-                  <View style={styles.fieldDetails}>
-                    <Text style={styles.fieldName} numberOfLines={2}>{field.name}</Text>
-                    {field.kind !== 'manual' && <Text style={styles.fieldPoints}>{field.pointsPerUnit > 0 ? '+' : ''}{field.pointsPerUnit} per {field.kind === 'checkbox' ? 'check' : 'unit'}</Text>}
-                  </View>
-                  {field.kind === 'checkbox' ? (
-                    <Checkbox
-                      status={value > 0 ? 'checked' : 'unchecked'}
-                      disabled={controlsDisabled}
-                      onPress={() => updateScore(player.id, field.id, value > 0 ? 0 : 1).catch(() => undefined)}
-                    />
-                  ) : (
-                    <View style={styles.counter}>
-                      <IconButton icon="minus" size={20} mode="contained-tonal" disabled={controlsDisabled} onPress={() => updateScore(player.id, field.id, value - 1).catch(() => undefined)} />
-                      <Text style={styles.counterValue}>{value}</Text>
-                      <IconButton icon="plus" size={20} mode="contained-tonal" disabled={controlsDisabled} onPress={() => updateScore(player.id, field.id, value + 1).catch(() => undefined)} />
-                    </View>
-                  )}
-                </View>
+              return field.kind === 'checkbox' ? (
+                <ScoreCheckbox key={field.id} label={`${field.name} · ${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} pts`} checked={value > 0} disabled={controlsDisabled} onChange={(checked) => updateScore(player.id, field.id, checked ? 1 : 0).catch(() => undefined)} />
+              ) : (
+                <ScoreStepper key={field.id} player={field.name} detail={field.kind === 'manual' ? 'Manual points' : `${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} per unit`} value={value} min={field.kind === 'manual' ? -999 : 0} max={999} disabled={controlsDisabled} onChange={(next) => updateScore(player.id, field.id, next).catch(() => undefined)} />
               );
             })}
           </View>
@@ -226,14 +212,14 @@ const styles = StyleSheet.create({
   finishConfirm: { backgroundColor: colors.orangePale, borderRadius: 18, gap: 11, marginTop: 14, padding: 15 },
   finishConfirmText: { color: colors.ink, fontSize: 13, lineHeight: 19 },
   finishActions: { flexDirection: 'row', justifyContent: 'flex-end' },
-  scoreboard: { backgroundColor: colors.forest, borderRadius: 24, marginTop: 24, padding: 19 },
+  scoreboard: { backgroundColor: colors.paper, borderColor: colors.forest, borderRadius: 24, borderWidth: 1, marginTop: 24, padding: 19 },
   scoreboardHeading: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  scoreboardTitle: { color: colors.paper, fontSize: 17, fontWeight: '800' },
+  scoreboardTitle: { color: colors.ink, fontSize: 17, fontWeight: '800' },
   totalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 17 },
-  totalTile: { backgroundColor: '#3B6A60', borderRadius: 16, flexBasis: 95, flexGrow: 1, minWidth: 95, padding: 12 },
-  totalName: { color: '#DBEAE3', fontSize: 12, fontWeight: '700' },
-  totalValue: { color: colors.paper, fontSize: 30, fontWeight: '800', marginTop: 3 },
-  totalLabel: { color: '#B9D6CA', fontSize: 9, fontWeight: '800', letterSpacing: 1.1 },
+  totalTile: { backgroundColor: colors.mint, borderRadius: 16, flexBasis: 95, flexGrow: 1, minWidth: 95, padding: 12 },
+  totalName: { color: colors.ink, fontSize: 12, fontWeight: '700' },
+  totalValue: { color: colors.ink, fontSize: 30, fontWeight: '800', marginTop: 3 },
+  totalLabel: { color: colors.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1.1 },
   sectionHeading: { marginBottom: 14, marginTop: 27 },
   eyebrow: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
   heading: { color: colors.ink, fontWeight: '800', marginTop: 4 },

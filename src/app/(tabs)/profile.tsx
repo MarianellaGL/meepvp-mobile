@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function ProfileScreen() {
   const [nameDraft, setNameDraft] = useState<string | null>(null);
@@ -52,12 +54,12 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginTop: 10 },
   title: { color: colors.ink, fontSize: 34, fontWeight: '800', letterSpacing: -1.2, marginTop: 4 },
   subtitle: { color: colors.muted, fontSize: 15, marginBottom: 28, marginTop: 5 },
-  profileCard: { alignItems: 'center', backgroundColor: colors.forest, borderRadius: 27, padding: 28 },
-  avatar: { alignItems: 'center', backgroundColor: '#3D7168', borderRadius: 31, height: 62, justifyContent: 'center', marginBottom: 16, width: 62 },
+  profileCard: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.forest, borderRadius: 27, borderWidth: 1, padding: 28 },
+  avatar: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 31, height: 62, justifyContent: 'center', marginBottom: 16, width: 62 },
   anonymousPill: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 20, flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 6 },
   anonymousText: { color: colors.forest, fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  profileTitle: { color: colors.paper, fontSize: 23, fontWeight: '800', letterSpacing: -0.5, marginTop: 16 },
-  profileCopy: { color: '#D5E7DE', fontSize: 14, lineHeight: 21, marginTop: 7, textAlign: 'center' },
+  profileTitle: { color: colors.ink, fontSize: 23, fontWeight: '800', letterSpacing: -0.5, marginTop: 16 },
+  profileCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 7, textAlign: 'center' },
   nameCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 19, borderWidth: 1, gap: 10, marginTop: 18, padding: 16 },
   sectionLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 13, marginTop: 30 },
   featureCard: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 19, borderWidth: 1, flexDirection: 'row', gap: 13, marginBottom: 10, padding: 14 },

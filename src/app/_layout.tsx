@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { PaperProvider } from 'react-native-paper';
+import { ScoreUIProvider } from '@marianellagl/scoreui';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
-import { paperTheme } from '@/theme';
 
 export default function RootLayout() {
   const restore = useTableScoreStore((state) => state.restore);
@@ -24,8 +23,8 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <PaperProvider theme={paperTheme}>
+    <ScoreUIProvider>
       <Stack screenOptions={{ headerShown: false }} />
-    </PaperProvider>
+    </ScoreUIProvider>
   );
 }

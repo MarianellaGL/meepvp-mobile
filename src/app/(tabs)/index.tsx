@@ -3,11 +3,13 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ActivityIndicator, Button, HelperText, Text, TextInput } from 'react-native-paper';
+import { ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { ActivityIndicator, HelperText, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function DashboardScreen() {
   const [usernameDraft, setUsernameDraft] = useState<string | null>(null);
@@ -34,26 +36,24 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.brand}>
-          <View style={styles.brandMark}><MaterialCommunityIcons name="dice-multiple" color={colors.paper} size={22} /></View>
+          <View style={styles.brandMark}><MaterialCommunityIcons name="dice-multiple" color={colors.canvas} size={22} /></View>
           <View>
             <Text style={styles.brandName}>TableScore</Text>
             <Text style={styles.brandTag}>YOUR TABLE, YOUR RULES</Text>
           </View>
         </View>
 
-        <LinearGradient colors={[colors.forestDark, colors.forest, '#32665D']} style={styles.hero}>
+        <LinearGradient colors={[colors.forestDark, colors.paper, colors.orangePale]} style={styles.hero}>
           <View style={styles.heroCircle} />
           <View style={styles.heroCircleSmall} />
           <View style={styles.heroBadge}>
-            <MaterialCommunityIcons name="cards-outline" color={colors.orangePale} size={16} />
+            <MaterialCommunityIcons name="cards-outline" color={colors.forest} size={16} />
             <Text style={styles.heroBadgeText}>READY FOR GAME NIGHT</Text>
           </View>
           <Text style={styles.heroTitle}>Play more.\nCount less.</Text>
           <Text style={styles.heroCopy}>A little less math, a lot more game.</Text>
           <Button
             mode="contained"
-            buttonColor={colors.orange}
-            textColor={colors.paper}
             icon={store.session ? 'arrow-right' : 'plus'}
             loading={store.isCreatingTable}
             disabled={!store.hasRestored || store.isRestoring}
@@ -135,9 +135,9 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <Button mode="contained-tonal" icon="file-pdf-box" style={styles.pdfAction} contentStyle={styles.pdfActionContent} onPress={() => router.push('/pdf/reader')}>Upload PDF rulebook</Button>
-        <Button mode="outlined" icon="account-group-outline" style={styles.communityAction} contentStyle={styles.pdfActionContent} onPress={() => router.push('/community/rules')}>Find community scoring rules</Button>
-        <Button mode="outlined" icon="calendar-plus" style={styles.communityAction} contentStyle={styles.pdfActionContent} onPress={() => router.push('/schedule')}>Schedule a game</Button>
+        <Button mode="contained-tonal" icon="file-pdf-box" style={styles.pdfAction} onPress={() => router.push('/pdf/reader')}>Upload PDF rulebook</Button>
+        <Button mode="outlined" icon="account-group-outline" style={styles.communityAction} onPress={() => router.push('/community/rules')}>Find community scoring rules</Button>
+        <Button mode="outlined" icon="calendar-plus" style={styles.communityAction} onPress={() => router.push('/schedule')}>Schedule a game</Button>
 
         <View style={styles.sectionTitle}>
           <View>
@@ -179,12 +179,12 @@ const styles = StyleSheet.create({
   brandName: { color: colors.ink, fontSize: 21, fontWeight: '800', letterSpacing: -0.6 },
   brandTag: { color: colors.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
   hero: { borderRadius: 28, minHeight: 265, overflow: 'hidden', padding: 24 },
-  heroCircle: { borderColor: '#47766C', borderRadius: 130, borderWidth: 1, height: 260, position: 'absolute', right: -75, top: -96, width: 260 },
-  heroCircleSmall: { backgroundColor: '#3C7166', borderRadius: 65, height: 130, opacity: 0.45, position: 'absolute', right: -20, top: 48, width: 130 },
+  heroCircle: { borderColor: colors.line, borderRadius: 130, borderWidth: 1, height: 260, position: 'absolute', right: -75, top: -96, width: 260 },
+  heroCircleSmall: { backgroundColor: colors.orange, borderRadius: 65, height: 130, opacity: 0.25, position: 'absolute', right: -20, top: 48, width: 130 },
   heroBadge: { alignItems: 'center', flexDirection: 'row', gap: 6, marginBottom: 18 },
-  heroBadgeText: { color: colors.orangePale, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  heroTitle: { color: colors.paper, fontSize: 42, fontWeight: '800', letterSpacing: -1.7, lineHeight: 45 },
-  heroCopy: { color: '#DBEAE3', fontSize: 15, marginTop: 10 },
+  heroBadgeText: { color: colors.forest, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
+  heroTitle: { color: colors.ink, fontSize: 42, fontWeight: '800', letterSpacing: -1.7, lineHeight: 45 },
+  heroCopy: { color: colors.muted, fontSize: 15, marginTop: 10 },
   heroButton: { alignSelf: 'flex-start', marginTop: 24 },
   sectionTitle: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14, marginTop: 29 },
   eyebrow: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 3 },
@@ -204,10 +204,9 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 12 },
   pdfAction: { marginTop: 14 },
   communityAction: { marginTop: 10 },
-  pdfActionContent: { minHeight: 52 },
   actionCard: { borderRadius: 22, flex: 1, minHeight: 195, padding: 15 },
-  actionWarm: { backgroundColor: '#FBEFE5' },
-  actionCool: { backgroundColor: '#E8F1E9' },
+  actionWarm: { backgroundColor: colors.orangePale },
+  actionCool: { backgroundColor: colors.mint },
   actionIcon: { alignItems: 'center', borderRadius: 14, height: 42, justifyContent: 'center', marginBottom: 10, width: 42 },
   actionTitle: { color: colors.ink, fontWeight: '800', marginBottom: 4 },
   count: { color: colors.muted, fontSize: 12, fontWeight: '700' },

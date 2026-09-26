@@ -1,37 +1,21 @@
-import { MD3LightTheme } from 'react-native-paper';
+import { scoreUITheme, tokens } from '@marianellagl/scoreui';
+
+const palette = tokens.color;
 
 export const colors = {
-  canvas: '#F7F4EC',
-  paper: '#FFFDFA',
-  ink: '#172B28',
-  muted: '#64736D',
-  forest: '#204F49',
-  forestDark: '#153B36',
-  mint: '#DDECE3',
-  orange: '#E87850',
-  orangeInk: '#A8492E',
-  orangePale: '#F9E6D8',
-  line: '#E8E7DF',
-  error: '#B34735',
+  canvas: palette.canvas,
+  paper: palette.surface,
+  ink: palette.primaryText,
+  muted: palette.secondaryText,
+  forest: palette.gold,
+  forestDark: palette.canvas,
+  mint: palette.elevated,
+  orange: palette.red,
+  orangeInk: palette.gold,
+  orangePale: palette.elevated,
+  line: palette.border,
+  error: palette.warning,
 };
 
-export const paperTheme = {
-  ...MD3LightTheme,
-  roundness: 18,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: colors.forest,
-    onPrimary: colors.paper,
-    primaryContainer: colors.mint,
-    onPrimaryContainer: colors.forestDark,
-    secondary: colors.orange,
-    secondaryContainer: colors.orangePale,
-    background: colors.canvas,
-    surface: colors.paper,
-    surfaceVariant: colors.mint,
-    onSurface: colors.ink,
-    onSurfaceVariant: colors.muted,
-    outline: colors.line,
-    error: colors.error,
-  },
-};
+export const paperTheme = scoreUITheme;
+export { tokens };

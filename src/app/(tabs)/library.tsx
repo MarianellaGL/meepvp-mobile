@@ -1,11 +1,13 @@
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ScoreBadge, ScoreSkeleton } from '@marianellagl/scoreui';
 import { router } from 'expo-router';
-import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function LibraryScreen() {
   const collection = useTableScoreStore((state) => state.collection);
@@ -64,7 +66,7 @@ export default function LibraryScreen() {
             )}
           </>
         }
-        ListEmptyComponent={!hasRestored ? <ActivityIndicator size="large" style={styles.loader} /> :
+        ListEmptyComponent={!hasRestored ? <ScoreSkeleton variant="list" /> :
           <View style={styles.empty}>
             <View style={styles.emptyIcon}><MaterialCommunityIcons name="bookshelf" size={34} color={colors.forest} /></View>
             <Text variant="headlineSmall" style={styles.emptyTitle}>Your shelf is waiting</Text>
@@ -81,9 +83,7 @@ export default function LibraryScreen() {
               <Text variant="titleMedium" style={styles.gameName} numberOfLines={2}>{item.name}</Text>
               <Text style={styles.gameMeta}>{item.yearPublished || 'Year unknown'} · {item.minPlayers ?? '?'}–{item.maxPlayers ?? '?'} players</Text>
               {!!item.playingTime && <Text style={styles.gameMeta}>{item.playingTime} min</Text>}
-              <Text style={[styles.sheetStatus, { color: rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? colors.forest : colors.orangeInk }]}>
-                {rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'Scoring sheet ready' : 'No scoring sheet yet'}
-              </Text>
+              <ScoreBadge tone={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'success' : 'warning'} label={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'Scoring sheet ready' : 'No scoring sheet yet'} />
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
           </Pressable>

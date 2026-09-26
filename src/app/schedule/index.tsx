@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { Button, IconButton, Text, TextInput } from 'react-native-paper';
+import { ScoreCalendar, ScoreDropdown, ScoreTextField as TextInput } from '@marianellagl/scoreui';
+import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
+import { AppButton as Button } from '@/components/AppButton';
 
 export default function ScheduleScreen() {
   const { rules, scheduledGames, table, error, loadRules, loadScheduledGames, createScheduledGame } = useTableScoreStore();
@@ -16,6 +18,8 @@ export default function ScheduleScreen() {
   const [ruleId, setRuleId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   useEffect(() => {
     loadRules().catch(() => undefined);
@@ -64,15 +68,10 @@ export default function ScheduleScreen() {
 
         <View style={styles.card}>
           <TextInput label="Game name" value={gameName} onChangeText={setGameName} mode="outlined" />
-          <View style={styles.dateRow}>
-            <TextInput label="Date · YYYY-MM-DD" placeholder="2026-10-10" value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation" mode="outlined" style={styles.dateField} />
-            <TextInput label="Time · HH:MM" placeholder="20:00" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" mode="outlined" style={styles.timeField} />
-          </View>
+          <ScoreCalendar selectedDate={date || null} onSelect={setDate} minDate={todayKey} markedDates={scheduledGames.map((game) => { const day = new Date(game.scheduledAt); return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`; })} />
+          <TextInput label="Time · HH:MM" placeholder="20:00" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" mode="outlined" />
           <TextInput label="Players (optional)" placeholder="Ana, Leo" value={players} onChangeText={setPlayers} mode="outlined" />
-          <Text style={styles.muted}>Scoring sheet (optional)</Text>
-          {rules.slice(0, 20).map((rule) => (
-            <Button key={rule.id} mode={ruleId === rule.id ? 'contained-tonal' : 'outlined'} onPress={() => { setRuleId(ruleId === rule.id ? '' : rule.id); if (!gameName.trim()) setGameName(rule.gameName); }}>{rule.gameName} · {rule.name}</Button>
-          ))}
+          <ScoreDropdown label="Scoring sheet (optional)" value={ruleId} options={[{ value: '', label: 'Add one later' }, ...rules.map((rule) => ({ value: rule.id, label: `${rule.gameName} · ${rule.name}` }))]} onChange={(selected) => { setRuleId(selected); const rule = rules.find((item) => item.id === selected); if (rule && !gameName.trim()) setGameName(rule.gameName); }} />
           {formError && <Text style={styles.error}>{formError}</Text>}
           <Button mode="contained" icon="calendar-plus" loading={saving} disabled={saving} onPress={schedule}>Schedule game</Button>
         </View>
