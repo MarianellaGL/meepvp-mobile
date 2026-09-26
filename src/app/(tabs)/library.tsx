@@ -1,0 +1,7 @@
+import { FlatList, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { Button, Card, Text } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTableScoreStore } from '@/stores/useTableScoreStore';
+export default function LibraryScreen() { const { collection } = useTableScoreStore(); return <SafeAreaView style={s.safe} edges={['top']}><FlatList data={collection} keyExtractor={(x) => String(x.bggId)} contentContainerStyle={s.content} ListHeaderComponent={<><Text variant="headlineMedium">Your library</Text><Text style={s.copy}>Games imported from BoardGameGeek.</Text><Button mode="contained-tonal" icon="table-edit" onPress={() => router.push('/rules/new')}>Create scoring sheet</Button></>} ListEmptyComponent={<Card mode="outlined"><Card.Content><Text variant="titleMedium">Your shelf is empty</Text><Text style={s.copy}>Import your BGG collection from Home.</Text></Card.Content></Card>} renderItem={({ item }) => <Card mode="outlined"><Card.Content><Text variant="titleMedium">{item.name}</Text><Text variant="bodySmall">{item.minPlayers ?? '?'}–{item.maxPlayers ?? '?'} players · {item.playingTime ?? '?'} min</Text></Card.Content></Card>} /></SafeAreaView>; }
+const s = StyleSheet.create({ safe: { flex: 1, backgroundColor: '#FFFBFE' }, content: { gap: 12, padding: 20 }, copy: { color: '#655D6D', marginVertical: 8 } });

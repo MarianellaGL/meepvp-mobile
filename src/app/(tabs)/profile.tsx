@@ -1,0 +1,5 @@
+import { StyleSheet, View } from 'react-native';
+import { Chip, Divider, List, Text } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+export default function ProfileScreen() { return <SafeAreaView style={s.safe} edges={['top']}><View style={s.content}><Chip icon="incognito">Anonymous player</Chip><Text variant="headlineMedium">Your profile</Text><Text variant="bodyLarge" style={s.copy}>Play without an account. Sign in later to keep history across devices and publish scoring sheets.</Text><List.Section><List.Item title="Game history" description="Available after you save a game" left={(p) => <List.Icon {...p} icon="history" />} /><Divider /><List.Item title="Community scoring sheets" description="Publish and reuse templates" left={(p) => <List.Icon {...p} icon="account-group-outline" />} /></List.Section></View></SafeAreaView>; }
+const s = StyleSheet.create({ safe: { flex: 1, backgroundColor: '#FFFBFE' }, content: { gap: 14, padding: 20 }, copy: { color: '#655D6D' } });
