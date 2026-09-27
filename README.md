@@ -21,7 +21,9 @@ El lector de imágenes usa `expo-text-extractor` y necesita una compilación nat
 
 Al abrir la app se puede registrar una cuenta, iniciar sesión, continuar sin cuenta o unirse a una partida. Para unirse se escanea el QR de una partida activa o se ingresa el código de seis caracteres junto con el nombre del jugador. El QR contiene un enlace `meepvp://join?code=...`; el enlace directo requiere que la app esté instalada. La API resuelve ese código a la partida activa. Una partida terminada no genera QR y su código ya no permite unirse; aparece en Historial. El anfitrión puede finalizarla y la API devuelve el ganador o todos los jugadores empatados según la regla de puntuación.
 
-La biblioteca consulta las planillas guardadas en la base de datos cada vez que se abre y permite actualizar la lista manualmente. El lector de imágenes reconoce texto localmente en una foto o captura, permite corregirlo y pide revisar los puntos antes de guardar. El lector de PDF extrae texto seleccionable; el OCR de PDF escaneados todavía no está disponible. Los recordatorios de partidas programadas son notificaciones locales.
+El anfitrión puede pausar una partida larga y reanudarla días después. El contador muestra el tiempo realmente jugado, sin contar la pausa. Mientras está pausada, los puntos quedan bloqueados y la partida sigue visible en Inicio y Mesas. Se puede sacar o elegir una foto del tablero para retomarlo luego desde otro dispositivo; la API guarda la última foto, con límite de 5 MB. Quienes tengan el enlace de la partida pueden verla.
+
+La biblioteca consulta las planillas guardadas en la base de datos cada vez que se abre y permite actualizar la lista manualmente. El lector de imágenes reconoce texto localmente en una foto o captura, permite corregirlo y pide revisar los puntos antes de guardar. El lector de PDF extrae texto seleccionable y, cuando la API corre en macOS, usa OCR para páginas escaneadas. Los recordatorios de partidas programadas son notificaciones locales.
 
 ## Rutas de la API
 
@@ -39,6 +41,7 @@ La biblioteca consulta las planillas guardadas en la base de datos cada vez que 
 | Resolver el código de una partida activa | `GET /v1/tables/{code}/current-session` |
 | Consultar partida, agregar jugadores y puntos | `GET /v1/sessions/{id}`, `POST /v1/sessions/{id}/players`, `PATCH /v1/sessions/{id}/scores`, `POST /v1/sessions/{id}/points` |
 | Finalizar o reabrir partida | `POST /v1/sessions/{id}/finish`, `/reopen` |
+| Pausar, reanudar y guardar foto del tablero | `POST /v1/sessions/{id}/pause`, `/resume`, `POST/GET /v1/sessions/{id}/board-photo` |
 | Programar partidas | `GET/POST /v1/tables/{code}/scheduled-games`, `PATCH /v1/scheduled-games/{id}/rule`, `/session` |
 
 ## Cuentas y datos locales

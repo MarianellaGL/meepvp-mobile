@@ -19,6 +19,8 @@ export default function DashboardScreen() {
   const [tableName, setTableName] = useState('');
   const store = useTableScoreStore();
   const activeSession = store.session?.status === 'active' ? store.session : null;
+  const pausedSession = store.session?.status === 'paused' ? store.session : null;
+  const currentSession = activeSession ?? pausedSession;
   const authReady = useAuthStore((state) => state.hasRestored);
   const user = useAuthStore((state) => state.user);
   const entered = useEntryStore((state) => state.entered);
@@ -34,7 +36,7 @@ export default function DashboardScreen() {
   }
 
   function openGame() {
-    if (activeSession) router.push(`/sessions/${activeSession.id}`);
+    if (currentSession) router.push(`/sessions/${currentSession.id}`);
     else if (store.table) router.push('/sessions/new');
     else createTable();
   }
@@ -64,37 +66,37 @@ export default function DashboardScreen() {
           <Text style={styles.heroCopy}>Menos cuentas, más juego.</Text>
           <Button
             mode="contained"
-            icon={activeSession ? 'arrow-right' : 'plus'}
+            icon={currentSession ? 'arrow-right' : 'qrcode-scan'}
             loading={store.isCreatingTable}
             disabled={!store.hasRestored || store.isRestoring}
-            onPress={openGame}
+            onPress={() => currentSession ? router.push(`/sessions/${currentSession.id}`) : router.push('/join')}
             style={styles.heroButton}
           >
-            {activeSession ? 'Volver a la partida' : store.table ? 'Empezar una partida' : 'Crear una mesa'}
+            {currentSession ? pausedSession ? 'Retomar partida pausada' : 'Volver a la partida' : 'Unirse a una partida'}
           </Button>
         </LinearGradient>
 
         <View style={styles.sectionTitle}>
           <View>
             <Text style={styles.eyebrow}>LA MESA</Text>
-            <Text variant="headlineSmall" style={styles.heading}>{activeSession ? 'La partida de hoy' : 'Tu próxima partida'}</Text>
+            <Text variant="headlineSmall" style={styles.heading}>{currentSession ? 'Tu partida' : 'Tu próxima partida'}</Text>
           </View>
           <View style={styles.statusPill}>
-            <View style={[styles.statusDot, { backgroundColor: activeSession || store.table ? colors.forest : colors.orange }]} />
-            <Text style={styles.statusText}>{activeSession ? 'En curso' : store.table ? 'Lista' : 'Nueva'}</Text>
+            <View style={[styles.statusDot, { backgroundColor: currentSession || store.table ? colors.forest : colors.orange }]} />
+            <Text style={styles.statusText}>{pausedSession ? 'Pausada' : activeSession ? 'En curso' : store.table ? 'Lista' : 'Nueva'}</Text>
           </View>
         </View>
 
         <View style={styles.tableCard}>
           {!store.hasRestored || store.isRestoring ? (
             <ActivityIndicator />
-          ) : store.table || activeSession ? (
+          ) : store.table || currentSession ? (
             <>
               <View style={styles.tableCardTop}>
                 <View style={styles.tableIcon}><MaterialCommunityIcons name="table-furniture" color={colors.forest} size={24} /></View>
                 <View style={styles.tableDetails}>
-                  <Text variant="titleLarge" style={styles.cardTitle}>{activeSession ? store.rules.find((rule) => rule.id === activeSession.ruleId)?.gameName ?? 'Partida en curso' : 'Mesa lista para jugar'}</Text>
-                  <Text style={styles.muted}>{activeSession ? 'Hay una partida en curso' : 'No hay una partida en curso'}</Text>
+                  <Text variant="titleLarge" style={styles.cardTitle}>{currentSession ? store.rules.find((rule) => rule.id === currentSession.ruleId)?.gameName ?? 'Partida en curso' : 'Mesa lista para jugar'}</Text>
+                  <Text style={styles.muted}>{pausedSession ? 'Pausada para continuar otro día' : activeSession ? 'Hay una partida en curso' : 'No hay una partida en curso'}</Text>
                 </View>
               </View>
               {activeSession && <View style={styles.codeStrip}>
@@ -103,7 +105,7 @@ export default function DashboardScreen() {
               </View>}
               {activeSession && <TableQRCode code={activeSession.tableCode} />}
               <Button mode="contained" icon="arrow-right" onPress={openGame}>
-                {activeSession ? 'Abrir partida' : 'Empezar una partida'}
+                {pausedSession ? 'Ver partida pausada' : activeSession ? 'Abrir partida' : 'Empezar una partida'}
               </Button>
             </>
           ) : (

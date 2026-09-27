@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { ImagePickerAsset } from 'expo-image-picker';
 
 import { api, type AnonymousTable, type CollectionGame, type CreateScoringRule, type PDFExtract, type ScheduledGame, type ScoreSession, type ScoringRule } from '@/lib/api';
 import { loadSavedGame, saveSelfPlayerId, saveSessionId, saveTable } from '@/lib/savedGame';
@@ -27,6 +28,9 @@ type TableScoreState = {
   isUpdatingScore: boolean;
   isAdjustingPoints: boolean;
   isFinishingSession: boolean;
+  isPausingSession: boolean;
+  isResumingSession: boolean;
+  isUploadingBoardPhoto: boolean;
   isReopeningSession: boolean;
   isJoiningSession: boolean;
   error: string | null;
@@ -48,6 +52,9 @@ type TableScoreState = {
   updateScore: (playerId: string, fieldId: string, value: number) => Promise<void>;
   adjustPoints: (playerId: string, delta: number) => Promise<void>;
   finishSession: () => Promise<void>;
+  pauseSession: () => Promise<void>;
+  resumeSession: () => Promise<void>;
+  saveBoardPhoto: (asset: ImagePickerAsset) => Promise<void>;
   reopenSession: () => Promise<void>;
   clearError: () => void;
   setPDFDraft: (draft: PDFExtract | null) => void;
@@ -74,6 +81,9 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   isUpdatingScore: false,
   isAdjustingPoints: false,
   isFinishingSession: false,
+  isPausingSession: false,
+  isResumingSession: false,
+  isUploadingBoardPhoto: false,
   isReopeningSession: false,
   isJoiningSession: false,
   error: null,
@@ -319,7 +329,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   },
   async updateScore(playerId, fieldId, value) {
     const { session, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();
-    if (!session || session.status === 'finished' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
+    if (!session || session.status !== 'active' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
     set({ isUpdatingScore: true, error: null });
     try { set({ session: await api.setScore(session.id, playerId, fieldId, value) }); }
     catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos actualizar los puntos.' }); throw error; }
@@ -327,7 +337,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   },
   async adjustPoints(playerId, delta) {
     const { session, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();
-    if (!session || session.status === 'finished' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
+    if (!session || session.status !== 'active' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
     if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > 10000) throw new Error('Ingresá entre 1 y 10.000 puntos.');
     set({ isAdjustingPoints: true, error: null });
     try { set({ session: await api.adjustPoints(session.id, playerId, delta) }); }
@@ -342,6 +352,33 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     try { set({ session: await api.finishSession(session.id, table.hostToken) }); }
     catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos terminar la partida.' }); throw error; }
     finally { set({ isFinishingSession: false }); }
+  },
+  async pauseSession() {
+    const { session, table, isPausingSession } = get();
+    if (!session || session.status !== 'active' || isPausingSession) return;
+    if (!table || table.code !== session.tableCode) throw new Error('Solo el anfitrión puede pausar esta partida.');
+    set({ isPausingSession: true, error: null });
+    try { set({ session: await api.pauseSession(session.id, table.hostToken) }); }
+    catch (cause) { set({ error: cause instanceof Error ? cause.message : 'No pudimos pausar la partida.' }); throw cause; }
+    finally { set({ isPausingSession: false }); }
+  },
+  async resumeSession() {
+    const { session, table, isResumingSession } = get();
+    if (!session || session.status !== 'paused' || isResumingSession) return;
+    if (!table || table.code !== session.tableCode) throw new Error('Solo el anfitrión puede reanudar esta partida.');
+    set({ isResumingSession: true, error: null });
+    try { set({ session: await api.resumeSession(session.id, table.hostToken) }); }
+    catch (cause) { set({ error: cause instanceof Error ? cause.message : 'No pudimos reanudar la partida.' }); throw cause; }
+    finally { set({ isResumingSession: false }); }
+  },
+  async saveBoardPhoto(asset) {
+    const { session, table, isUploadingBoardPhoto } = get();
+    if (!session || isUploadingBoardPhoto) return;
+    if (!table || table.code !== session.tableCode) throw new Error('Solo el anfitrión puede guardar la foto del tablero.');
+    set({ isUploadingBoardPhoto: true, error: null });
+    try { set({ session: await api.saveBoardPhoto(session.id, table.hostToken, asset) }); }
+    catch (cause) { set({ error: cause instanceof Error ? cause.message : 'No pudimos guardar la foto del tablero.' }); throw cause; }
+    finally { set({ isUploadingBoardPhoto: false }); }
   },
   async reopenSession() {
     const { session, table, isReopeningSession } = get();

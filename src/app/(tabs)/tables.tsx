@@ -13,8 +13,10 @@ import { TableQRCode } from '@/components/TableQRCode';
 export default function TablesScreen() {
   const { table, session, selfPlayerId, myPlayerName, username, isRestoring, hasRestored, error, restore } = useTableScoreStore();
   const activeSession = session?.status === 'active' && session.tableCode === table?.code ? session : null;
-  const selfPlayer = activeSession?.players.find((player) => player.id === selfPlayerId) ?? activeSession?.players.find((player) => player.name.toLocaleLowerCase() === (myPlayerName || username || 'Vos').toLocaleLowerCase());
-  const myTotal = activeSession?.totals.find((total) => total.playerId === selfPlayer?.id)?.total ?? 0;
+  const pausedSession = session?.status === 'paused' && session.tableCode === table?.code ? session : null;
+  const currentSession = activeSession ?? pausedSession;
+  const selfPlayer = currentSession?.players.find((player) => player.id === selfPlayerId) ?? currentSession?.players.find((player) => player.name.toLocaleLowerCase() === (myPlayerName || username || 'Vos').toLocaleLowerCase());
+  const myTotal = currentSession?.totals.find((total) => total.playerId === selfPlayer?.id)?.total ?? 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -31,26 +33,27 @@ export default function TablesScreen() {
             <View style={styles.cardHeader}>
               <View style={styles.icon}><MaterialCommunityIcons name="table-furniture" size={29} color={colors.canvas} /></View>
               {activeSession && <ScoreBadge label="PARTIDA EN CURSO" tone="success" />}
+              {pausedSession && <ScoreBadge label="PARTIDA PAUSADA" tone="warning" />}
             </View>
-            <Text style={styles.tableName}>{activeSession ? table.name || 'Noche de juegos' : 'Mesa lista para jugar'}</Text>
-            <Text style={styles.cardCopy}>{activeSession ? 'Compartí el código para que se unan.' : 'No hay una partida en curso. Empezá una nueva para invitar jugadores.'}</Text>
+            <Text style={styles.tableName}>{currentSession ? table.name || 'Noche de juegos' : 'Mesa lista para jugar'}</Text>
+            <Text style={styles.cardCopy}>{pausedSession ? 'La partida está guardada para seguirla otro día.' : activeSession ? 'Compartí el código para que se unan.' : 'No hay una partida en curso. Empezá una nueva para invitar jugadores.'}</Text>
             {activeSession && <View style={styles.codeBox}>
               <Text style={styles.codeLabel}>CÓDIGO DE MESA</Text>
               <Text style={styles.code}>{table.code}</Text>
             </View>}
             {activeSession && <TableQRCode code={table.code} />}
-            {activeSession && (
+            {currentSession && (
               <View style={styles.sessionRow}>
                 <MaterialCommunityIcons name="cards-playing-outline" size={20} color={colors.forest} />
                 <View style={styles.sessionText}>
-                  <Text style={styles.sessionTitle}>Partida en curso</Text>
-                  <Text style={styles.sessionMeta}>{activeSession.players.length} jugadores · Puntos guardados</Text>
+                  <Text style={styles.sessionTitle}>{pausedSession ? 'Partida pausada' : 'Partida en curso'}</Text>
+                  <Text style={styles.sessionMeta}>{currentSession.players.length} jugadores · Puntos guardados</Text>
                 </View>
               </View>
             )}
-            {activeSession && selfPlayer && <ScoreGameCard title={table.name || 'Noche de juegos'} detail={`${activeSession.players.length} jugadores · ${selfPlayer.name}`} score={myTotal} label="TUS PUNTOS" featured />}
-            <Button mode="contained" icon="arrow-right" onPress={() => activeSession ? router.push(`/sessions/${activeSession.id}`) : router.push('/sessions/new')}>
-              {activeSession ? 'Abrir partida' : 'Empezar una partida'}
+            {currentSession && selfPlayer && <ScoreGameCard title={table.name || 'Noche de juegos'} detail={`${currentSession.players.length} jugadores · ${selfPlayer.name}`} score={myTotal} label="TUS PUNTOS" featured />}
+            <Button mode="contained" icon="arrow-right" onPress={() => currentSession ? router.push(`/sessions/${currentSession.id}`) : router.push('/sessions/new')}>
+              {pausedSession ? 'Ver partida pausada' : activeSession ? 'Abrir partida' : 'Empezar una partida'}
             </Button>
           </View>
         ) : (

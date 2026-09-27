@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScoreCheckbox, ScoreStepper, ScoreTextField as TextInput } from '@decodadev02/scoreui';
@@ -9,6 +10,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
+import { api, type ScoreSession } from '@/lib/api';
+
+function SessionDuration({ session }: { session: ScoreSession }) {
+  const [extraSeconds, setExtraSeconds] = useState(0);
+  useEffect(() => {
+    if (session.status !== 'active') return;
+    const started = Date.now();
+    const timer = setInterval(() => setExtraSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [session.id, session.lastModified, session.status]);
+  const total = Math.max(0, (session.durationSeconds ?? session.playedSeconds ?? 0) + extraSeconds);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return <Text style={styles.durationValue}>{days ? `${days} d · ` : ''}{hours ? `${hours} h · ` : ''}{minutes} min · {String(seconds).padStart(2, '0')} s</Text>;
+}
 
 function QuickPoints({ playerId, manualPoints, disabled, onAdjust }: { playerId: string; manualPoints: number; disabled: boolean; onAdjust: (playerId: string, delta: number) => Promise<void> }) {
   const [amount, setAmount] = useState('1');
@@ -42,9 +60,10 @@ export default function ScoringScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const attemptedHostJoin = useRef(new Set<string>());
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const {
-    session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, updateScore, adjustPoints, finishSession, reopenSession, joinSessionAsMe, error,
-    isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isReopeningSession, isJoiningSession,
+    session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
+    isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isPausingSession, isResumingSession, isUploadingBoardPhoto, isReopeningSession, isJoiningSession,
   } = useTableScoreStore();
   const selfName = (myPlayerName || username || 'Vos').trim();
   const isHost = !!session && !!table && table.code.toLocaleUpperCase() === session.tableCode.toLocaleUpperCase();
@@ -61,6 +80,23 @@ export default function ScoringScreen() {
     attemptedHostJoin.current.add(key);
     joinSessionAsMe(selfName).catch(() => undefined);
   }, [session, isHost, hostInSession, selfName, joinSessionAsMe]);
+
+  async function pickBoardPhoto(source: 'camera' | 'library') {
+    setPhotoError(null);
+    try {
+      if (source === 'camera' && Platform.OS !== 'web') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) throw new Error('Necesitamos permiso para fotografiar el tablero.');
+      }
+      const picked = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.6 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6 });
+      if (picked.canceled || !picked.assets[0]) return;
+      await saveBoardPhoto(picked.assets[0]);
+    } catch (cause) {
+      setPhotoError(cause instanceof Error ? cause.message : 'No pudimos guardar la foto.');
+    }
+  }
 
   if (!session || session.id !== sessionId) {
     return (
@@ -90,7 +126,8 @@ export default function ScoringScreen() {
   }
 
   const isFinished = session.status === 'finished';
-  const controlsDisabled = isFinished || isUpdatingScore || isAdjustingPoints || isFinishingSession;
+  const isPaused = session.status === 'paused';
+  const controlsDisabled = session.status !== 'active' || isUpdatingScore || isAdjustingPoints || isFinishingSession || isPausingSession;
   const selfPlayer = session.players.find((player) => player.id === selfPlayerId) ?? session.players.find((player) => player.name.toLocaleLowerCase() === selfName.toLocaleLowerCase());
   const winners = isFinished ? (session.winners ?? []).map((result) => ({ ...result, name: session.players.find((player) => player.id === result.playerId)?.name ?? 'Jugador' })) : [];
 
@@ -105,8 +142,13 @@ export default function ScoringScreen() {
         <Text style={styles.title}>{rule.gameName}</Text>
         <Text style={styles.subtitle}>{rule.name}</Text>
         <View style={styles.status}>
-          <View style={[styles.statusDot, { backgroundColor: isFinished ? colors.orange : colors.forest }]} />
-          <Text style={styles.statusText}>{isFinished ? 'PARTIDA TERMINADA' : 'PARTIDA EN CURSO'}</Text>
+          <View style={[styles.statusDot, { backgroundColor: isFinished || isPaused ? colors.orange : colors.forest }]} />
+          <Text style={styles.statusText}>{isFinished ? 'PARTIDA TERMINADA' : isPaused ? 'PARTIDA PAUSADA' : 'PARTIDA EN CURSO'}</Text>
+        </View>
+        <View style={styles.durationCard}>
+          <Text style={styles.durationLabel}>TIEMPO JUGADO</Text>
+          <SessionDuration key={`${session.id}:${session.lastModified}:${session.status}`} session={session} />
+          {isPaused && <Text style={styles.durationHint}>El tiempo está detenido. Podés seguir otro día.</Text>}
         </View>
         {isFinished && winners.length > 0 && (
           <View style={styles.winnerCard}>
@@ -117,6 +159,23 @@ export default function ScoringScreen() {
         )}
         {error && <Text style={styles.topError}>{error}</Text>}
         {isFinished && isHost && <Button mode="contained" icon="restart" loading={isReopeningSession} onPress={() => reopenSession().catch(() => undefined)} style={styles.reopenButton}>Reabrir partida para editar puntos</Button>}
+
+        {!isFinished && isHost && <View style={styles.pauseCard}>
+          {isPaused ? <>
+            <Text style={styles.pauseTitle}>Guardá cómo quedó el tablero</Text>
+            <Text style={styles.durationHint}>Quienes tengan la partida podrán ver la foto desde su celular.</Text>
+            <Button mode="outlined" icon="camera" loading={isUploadingBoardPhoto} disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('camera')}>Tomar foto del tablero</Button>
+            <Button mode="text" icon="image" disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('library')}>Elegir una foto</Button>
+            <Button mode="contained" icon="play" loading={isResumingSession} disabled={isUploadingBoardPhoto || isResumingSession} onPress={() => resumeSession().catch(() => undefined)}>Reanudar partida</Button>
+          </> : <Button mode="outlined" icon="pause" loading={isPausingSession} disabled={controlsDisabled} onPress={() => pauseSession().catch(() => undefined)}>Pausar partida</Button>}
+          {photoError && <Text style={styles.topError}>{photoError}</Text>}
+        </View>}
+
+        {session.boardPhotoUpdatedAt && <View style={styles.photoCard}>
+          <Text style={styles.pauseTitle}>Foto del tablero</Text>
+          <Image source={{ uri: api.boardPhotoURL(session.id, session.boardPhotoUpdatedAt) }} style={styles.boardPhoto} resizeMode="contain" accessibilityLabel="Estado del tablero guardado para esta partida" />
+          <Text style={styles.durationHint}>Última foto: {new Date(session.boardPhotoUpdatedAt).toLocaleString('es-AR')}</Text>
+        </View>}
 
         {isHost && !selfPlayer && !isFinished && (
           <View style={styles.joinCard}>
@@ -155,10 +214,10 @@ export default function ScoringScreen() {
             <Text style={styles.finishConfirmText}>¿Terminar la partida y mostrar quién ganó? Podrás reabrirla para seguir contando.</Text>
             <View style={styles.finishActions}>
               <Button mode="text" onPress={() => setConfirmFinish(false)}>Cancelar</Button>
-              <Button mode="contained" loading={isFinishingSession} disabled={controlsDisabled} onPress={() => finishSession().then(() => setConfirmFinish(false)).catch(() => undefined)}>Terminar partida</Button>
+              <Button mode="contained" loading={isFinishingSession} disabled={isUpdatingScore || isAdjustingPoints || isFinishingSession || isPausingSession || isResumingSession || isUploadingBoardPhoto} onPress={() => finishSession().then(() => setConfirmFinish(false)).catch(() => undefined)}>Terminar partida</Button>
             </View>
           </View>
-        ) : <Button mode="outlined" icon="flag-checkered" disabled={controlsDisabled} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Terminar partida</Button>)}
+        ) : <Button mode="outlined" icon="flag-checkered" disabled={isUpdatingScore || isAdjustingPoints || isPausingSession || isResumingSession || isUploadingBoardPhoto} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Terminar partida</Button>)}
 
         <View style={styles.sectionHeading}>
           <Text style={styles.eyebrow}>EL DETALLE</Text>
@@ -203,6 +262,14 @@ const styles = StyleSheet.create({
   status: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.mint, borderRadius: 18, flexDirection: 'row', gap: 7, marginTop: 17, paddingHorizontal: 11, paddingVertical: 7 },
   statusDot: { borderRadius: 4, height: 7, width: 7 },
   statusText: { color: colors.forest, fontSize: 10, fontWeight: '800', letterSpacing: 0.7 },
+  durationCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 3, marginTop: 14, padding: 16 },
+  durationLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  durationValue: { color: colors.ink, fontSize: 27, fontWeight: '800' },
+  durationHint: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  pauseCard: { backgroundColor: colors.mint, borderRadius: 18, gap: 9, marginTop: 15, padding: 15 },
+  pauseTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
+  photoCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 9, marginTop: 15, padding: 15 },
+  boardPhoto: { backgroundColor: colors.canvas, borderRadius: 13, height: 230, width: '100%' },
   joinCard: { backgroundColor: colors.mint, borderRadius: 19, gap: 11, marginTop: 20, padding: 16 },
   joinTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   joinCopy: { color: colors.muted, fontSize: 13, lineHeight: 19 },

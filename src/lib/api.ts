@@ -1,4 +1,7 @@
 import type { DocumentPickerAsset } from 'expo-document-picker';
+import type { ImagePickerAsset } from 'expo-image-picker';
+import { fetch as expoFetch } from 'expo/fetch';
+import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 export type CollectionGame = {
@@ -36,7 +39,7 @@ export type ScoringRule = { id: string; bggId?: number; gameName: string; name: 
 export type CreateScoringRule = Omit<ScoringRule, 'id' | 'createdAt' | 'fields'> & { fields: Omit<ScoreField, 'id'>[] };
 export type Player = { id: string; name: string };
 export type SessionTotal = { playerId: string; total: number };
-export type ScoreSession = { id: string; tableCode: string; ruleId: string; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: string; createdAt: string; lastModified: string; totals: SessionTotal[]; winners: SessionTotal[] };
+export type ScoreSession = { id: string; tableCode: string; ruleId: string; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: 'active' | 'paused' | 'finished'; playedSeconds: number; durationSeconds: number; runningSince?: string; pausedAt?: string; boardPhotoUpdatedAt?: string; createdAt: string; lastModified: string; totals: SessionTotal[]; winners: SessionTotal[] };
 export type ScheduledGame = { id: string; tableCode: string; gameName: string; ruleId?: string; scheduledAt: string; players: string[]; sessionId?: string; createdAt: string };
 export type AccountUser = { id: string; username: string; createdAt: string };
 export type AuthSession = { user: AccountUser; token: string };
@@ -121,5 +124,20 @@ export const api = {
   setScore: (sessionId: string, playerId: string, fieldId: string, value: number) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/scores`, { method: 'PATCH', body: JSON.stringify({ playerId, fieldId, value }) }),
   adjustPoints: (sessionId: string, playerId: string, delta: number) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/points`, { method: 'POST', body: JSON.stringify({ playerId, delta }) }),
   finishSession: (sessionId: string, hostToken: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/finish`, { method: 'POST', headers: { 'X-Table-Token': hostToken } }),
+  pauseSession: (sessionId: string, hostToken: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/pause`, { method: 'POST', headers: { 'X-Table-Token': hostToken } }),
+  resumeSession: (sessionId: string, hostToken: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/resume`, { method: 'POST', headers: { 'X-Table-Token': hostToken } }),
+  boardPhotoURL: (sessionId: string, version?: string) => `${baseURL}/v1/sessions/${encodeURIComponent(sessionId)}/board-photo${version ? `?v=${encodeURIComponent(version)}` : ''}`,
+  async saveBoardPhoto(sessionId: string, hostToken: string, asset: ImagePickerAsset): Promise<ScoreSession> {
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('La foto supera los 5 MB. Elegí una imagen más liviana.');
+    const data = new FormData();
+    const name = asset.fileName ?? 'tablero.jpg';
+    if (Platform.OS === 'web' && asset.file) data.append('file', asset.file, name);
+    else data.append('file', new File(asset.uri), name);
+    const uploadFetch = Platform.OS === 'web' ? fetch : expoFetch;
+    const response = await uploadFetch(`${baseURL}/v1/sessions/${encodeURIComponent(sessionId)}/board-photo`, { method: 'POST', headers: { 'X-Table-Token': hostToken }, body: data });
+    const body = await response.json() as ScoreSession & { error?: string };
+    if (!response.ok) throw new APIRequestError(apiErrorMessage(body.error, response.status), response.status);
+    return body;
+  },
   reopenSession: (sessionId: string, hostToken: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/reopen`, { method: 'POST', headers: { 'X-Table-Token': hostToken } }),
 };

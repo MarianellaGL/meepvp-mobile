@@ -41,6 +41,10 @@ export default function JoinScreen() {
     setError(null);
     try {
       const session = await api.currentSessionByTable(tableCode);
+      if (session.status === 'paused') {
+        setError('Esta partida está pausada. Pedile al anfitrión que la reanude para poder unirte.');
+        return;
+      }
       await loadSession(session.id);
       await joinSessionAsMe(name);
       continueAsGuest();
