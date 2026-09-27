@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScoreTextField as TextInput } from '@decodadev02/scoreui';
 import { router, useFocusEffect } from 'expo-router';
-import { Text, TextInput as PasswordInput } from 'react-native-paper';
+import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, baseURL } from '@/lib/api';
@@ -16,24 +16,13 @@ export default function ProfileScreen() {
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [apiStatus, setAPIStatus] = useState<string | null>(null);
   const [checkingAPI, setCheckingAPI] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [accountName, setAccountName] = useState('');
-  const [password, setPassword] = useState('');
   const { myPlayerName, username, setMyPlayerName } = useTableScoreStore();
-  const { user, stats, isBusy, isRestoring, error: authError, signUp, logIn, logOut, refresh } = useAuthStore();
+  const { user, stats, isBusy, isRestoring, error: authError, logOut, refresh } = useAuthStore();
   const name = nameDraft ?? (myPlayerName || username || 'You');
 
   useFocusEffect(useCallback(() => {
     if (user) refresh().catch(() => undefined);
   }, [user, refresh]));
-
-  async function submitAccount() {
-    try {
-      if (authMode === 'signup') await signUp(accountName, password);
-      else await logIn(accountName, password);
-      setPassword('');
-    } catch { /* The account store displays the error. */ }
-  }
 
   async function checkAPI() {
     setCheckingAPI(true);
@@ -56,9 +45,9 @@ export default function ProfileScreen() {
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}><MaterialCommunityIcons name="account-outline" size={34} color={colors.paper} /></View>
-          <View style={styles.anonymousPill}><MaterialCommunityIcons name="incognito" size={15} color={colors.forest} /><Text style={styles.anonymousText}>ANONYMOUS PLAYER</Text></View>
+          <View style={styles.anonymousPill}><MaterialCommunityIcons name={user ? 'account-check-outline' : 'incognito'} size={15} color={colors.forest} /><Text style={styles.anonymousText}>{user ? `@${user.username}` : 'ANONYMOUS PLAYER'}</Text></View>
           <Text style={styles.profileTitle}>{myPlayerName || 'You’re ready to play'}</Text>
-          <Text style={styles.profileCopy}>Create tables and track scores without making an account.</Text>
+          <Text style={styles.profileCopy}>{user ? 'Your games and stats are linked to your account.' : 'Create tables and track scores without making an account.'}</Text>
         </View>
 
         <View style={styles.nameCard}>
@@ -77,14 +66,13 @@ export default function ProfileScreen() {
           ) : (
             <>
               <Text style={styles.featureCopy}>Create an account to keep your stats across devices and share sheets with the community.</Text>
-              <TextInput label="Username" value={accountName} onChangeText={setAccountName} autoCapitalize="none" mode="outlined" />
-              <PasswordInput label="Password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" mode="outlined" />
-              {authMode === 'signup' && <Text style={styles.featureCopy}>Use 3–30 letters, numbers, or underscores, and a password of at least 12 characters.</Text>}
-              <Button mode="contained" loading={isBusy} disabled={isBusy || !accountName.trim() || !password} onPress={() => submitAccount().catch(() => undefined)}>{authMode === 'signup' ? 'Create account' : 'Log in'}</Button>
-              <Button mode="text" onPress={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}>{authMode === 'login' ? 'New here? Create an account' : 'Already have an account? Log in'}</Button>
+              <View style={styles.authActions}>
+                <Button mode="contained" style={styles.authAction} onPress={() => router.push('/auth')}>Log in</Button>
+                <Button mode="outlined" style={styles.authAction} onPress={() => router.push({ pathname: '/auth', params: { mode: 'signup' } })}>Sign up</Button>
+              </View>
             </>
           )}
-          {authError && <Text style={styles.authError}>{authError}</Text>}
+          {user && authError && <Text style={styles.authError}>{authError}</Text>}
         </View>
 
         <View style={styles.nameCard}>
@@ -136,5 +124,7 @@ const styles = StyleSheet.create({
   featureCopy: { color: colors.muted, fontSize: 12, marginTop: 3 },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   stat: { backgroundColor: colors.mint, borderRadius: 10, color: colors.forest, fontSize: 12, fontWeight: '800', padding: 9 },
+  authActions: { flexDirection: 'row', gap: 10 },
+  authAction: { flex: 1 },
   authError: { color: colors.error, fontSize: 12 },
 });

@@ -38,7 +38,7 @@ Library refreshes the database's scoring-sheet list whenever it opens and offers
 
 ## Accounts, local data, and sharing
 
-Accounts use a username and password. A bearer session token is saved in Expo SecureStore on iOS and Android; the web build uses localStorage. A logged-in host's new game sessions are linked to that account. After signup or login, the app tries to attach the most recent locally saved session using its table host token and player ID. Older games without that proof cannot be assigned automatically. Anonymous play remains available.
+Accounts use a username and password. Profile and the community-sharing prompt open a dedicated `/auth` screen with login and signup. Signup confirms the password before submitting. A bearer session token is saved in Expo SecureStore on iOS and Android; the web build uses localStorage. A logged-in host's new game sessions are linked to that account. After signup or login, the app tries to attach the most recent locally saved session using its table host token and player ID. Older games without that proof cannot be assigned automatically. Anonymous play remains available.
 
 The table host token and most recent game remain on the device. Imported collections, scoring sheets, and extracted PDF text have local snapshots for offline viewing. The API persists scoring sheets and sessions in PostgreSQL. PDF extraction does not retain the original PDF.
 

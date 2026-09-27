@@ -84,7 +84,7 @@ export default function NewRuleScreen() {
           <ScoreSwitch label="Share this sheet with the community" value={isPublic && !!account} onChange={setIsPublic} disabled={!account} />
           {!account && <View style={styles.sharePrompt}>
             <Text style={styles.shareCopy}>Log in to publish a scoring sheet to the community.</Text>
-            <Button mode="text" style={styles.loginButton} onPress={() => router.push('/profile')}>Go to account</Button>
+            <Button mode="text" style={styles.loginButton} onPress={() => router.push('/auth')}>Log in or sign up</Button>
           </View>}
         </View>
 
