@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Platform, ScrollView, StyleSheet, TextInput as NumberInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreCheckbox, ScoreStepper, ScoreTextField as TextInput } from '@decodadev02/scoreui';
+import { ScoreCheckbox, ScoreTextField as TextInput } from '@decodadev02/scoreui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
+import { TableQRCode } from '@/components/TableQRCode';
 import { api, type ScoreSession } from '@/lib/api';
 
 function SessionDuration({ session }: { session: ScoreSession }) {
@@ -56,23 +57,52 @@ function QuickPoints({ playerId, manualPoints, disabled, onAdjust }: { playerId:
   );
 }
 
+function ScoreValueInput({ name, value, kind, pointsPerUnit, disabled, onSave }: { name: string; value: number; kind: 'manual' | 'counter'; pointsPerUnit: number; disabled: boolean; onSave: (value: number) => Promise<void> }) {
+  const [editingDraft, setEditingDraft] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const draft = editingDraft ?? String(value);
+
+  function commit() {
+    const next = Number(draft);
+    setEditingDraft(null);
+    if (!draft.trim() || !Number.isSafeInteger(next) || next < (kind === 'manual' ? -99999 : 0) || next > 99999) {
+      setError('Ingresá un número válido.');
+      return;
+    }
+    setError('');
+    if (next !== value) onSave(next).catch(() => undefined);
+  }
+
+  return <View style={styles.scoreInputRow}>
+    <View style={styles.fieldDetails}><Text style={styles.fieldName}>{name}</Text><Text style={styles.fieldPoints}>{kind === 'manual' ? 'Puntos' : `${pointsPerUnit} puntos por unidad`}</Text></View>
+    <NumberInput value={draft} onChangeText={(text) => { if (/^-?\d{0,5}$/.test(text)) setEditingDraft(text); }} onFocus={() => setEditingDraft(String(value))} onBlur={commit} editable={!disabled} keyboardType="numbers-and-punctuation" selectTextOnFocus style={styles.scoreNumberInput} accessibilityLabel={`${name}: ${kind === 'manual' ? 'puntos' : 'unidades'}`} />
+    {!!error && <Text style={styles.inputError}>{error}</Text>}
+  </View>;
+}
+
 export default function ScoringScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const attemptedHostJoin = useRef(new Set<string>());
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [showInvite, setShowInvite] = useState(false);
   const {
-    session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
+    session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, refreshSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
     isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isPausingSession, isResumingSession, isUploadingBoardPhoto, isReopeningSession, isJoiningSession,
   } = useTableScoreStore();
   const selfName = (myPlayerName || username || 'Vos').trim();
   const isHost = !!session && !!table && table.code.toLocaleUpperCase() === session.tableCode.toLocaleUpperCase();
-  const hostInSession = !!session?.players.some((player) => player.id === selfPlayerId || player.name.toLocaleLowerCase() === selfName.toLocaleLowerCase());
+  const hostInSession = !!session?.players.some((player) => player.id === selfPlayerId);
 
   useEffect(() => { loadRules().catch(() => undefined); }, [loadRules]);
   useEffect(() => {
     if (sessionId && session?.id !== sessionId) loadSession(sessionId).catch(() => undefined);
   }, [sessionId, session?.id, loadSession]);
+  useEffect(() => {
+    if (!sessionId || session?.id !== sessionId || session.status === 'finished') return;
+    const timer = setInterval(() => refreshSession(sessionId).catch(() => undefined), 5000);
+    return () => clearInterval(timer);
+  }, [sessionId, session?.id, session?.status, refreshSession]);
   useEffect(() => {
     if (!session || !isHost || session.status !== 'active' || hostInSession || !selfName) return;
     const key = `${session.id}:${selfName.toLocaleLowerCase()}`;
@@ -128,7 +158,7 @@ export default function ScoringScreen() {
   const isFinished = session.status === 'finished';
   const isPaused = session.status === 'paused';
   const controlsDisabled = session.status !== 'active' || isUpdatingScore || isAdjustingPoints || isFinishingSession || isPausingSession;
-  const selfPlayer = session.players.find((player) => player.id === selfPlayerId) ?? session.players.find((player) => player.name.toLocaleLowerCase() === selfName.toLocaleLowerCase());
+  const selfPlayer = session.players.find((player) => player.id === selfPlayerId);
   const winners = isFinished ? (session.winners ?? []).map((result) => ({ ...result, name: session.players.find((player) => player.id === result.playerId)?.name ?? 'Jugador' })) : [];
 
   return (
@@ -141,10 +171,15 @@ export default function ScoringScreen() {
         </View>
         <Text style={styles.title}>{rule.gameName}</Text>
         <Text style={styles.subtitle}>{rule.name}</Text>
+        {isFinished && <Text style={styles.finishedAt}>Finalizada el {new Date(session.finishedAt ?? session.lastModified).toLocaleString('es-AR')}</Text>}
         <View style={styles.status}>
           <View style={[styles.statusDot, { backgroundColor: isFinished || isPaused ? colors.orange : colors.forest }]} />
           <Text style={styles.statusText}>{isFinished ? 'PARTIDA TERMINADA' : isPaused ? 'PARTIDA PAUSADA' : 'PARTIDA EN CURSO'}</Text>
         </View>
+        {isHost && !isFinished && <View style={styles.inviteSection}>
+          <Button mode="outlined" icon="account-plus-outline" onPress={() => setShowInvite((visible) => !visible)}>{showInvite ? 'Ocultar invitación' : 'Invitar jugadores'}</Button>
+          {showInvite && <TableQRCode code={table.code} />}
+        </View>}
         <View style={styles.durationCard}>
           <Text style={styles.durationLabel}>TIEMPO JUGADO</Text>
           <SessionDuration key={`${session.id}:${session.lastModified}:${session.status}`} session={session} />
@@ -221,27 +256,26 @@ export default function ScoringScreen() {
 
         <View style={styles.sectionHeading}>
           <Text style={styles.eyebrow}>EL DETALLE</Text>
-          <Text variant="headlineSmall" style={styles.heading}>Contá los puntos</Text>
+          <Text variant="headlineSmall" style={styles.heading}>Tu tablero de puntuación</Text>
         </View>
 
-        {session.players.map((player) => (
-          <View key={player.id} style={styles.playerCard}>
+        {selfPlayer ? (
+          <View style={styles.playerCard}>
             <View style={styles.playerHeader}>
-              <View style={styles.playerAvatar}><Text style={styles.avatarText}>{player.name.charAt(0).toUpperCase()}</Text></View>
-              <Text style={styles.playerName}>{player.name}{selfPlayer?.id === player.id ? ' · Vos' : ''}</Text>
-              <Text style={styles.playerTotal}>{session.totals.find((item) => item.playerId === player.id)?.total ?? 0} pts</Text>
+              <View style={styles.playerAvatar}><Text style={styles.avatarText}>{selfPlayer.name.charAt(0).toUpperCase()}</Text></View>
+              <Text style={styles.playerName}>{selfPlayer.name} · Vos</Text>
+              <Text style={styles.playerTotal}>{session.totals.find((item) => item.playerId === selfPlayer.id)?.total ?? 0} pts</Text>
             </View>
-            {selfPlayer?.id !== player.id && <QuickPoints playerId={player.id} manualPoints={session.manualPoints?.[player.id] ?? 0} disabled={controlsDisabled} onAdjust={adjustPoints} />}
             {rule.fields.map((field) => {
-              const value = session.values[player.id]?.[field.id] ?? 0;
+              const value = session.values[selfPlayer.id]?.[field.id] ?? 0;
               return field.kind === 'checkbox' ? (
-                <ScoreCheckbox key={field.id} label={`${field.name} · ${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} pts`} checked={value > 0} disabled={controlsDisabled} onChange={(checked) => updateScore(player.id, field.id, checked ? 1 : 0).catch(() => undefined)} />
+                <ScoreCheckbox key={field.id} label={`${field.name} · ${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} pts`} checked={value > 0} disabled={controlsDisabled} onChange={(checked) => updateScore(selfPlayer.id, field.id, checked ? 1 : 0).catch(() => undefined)} />
               ) : (
-                <ScoreStepper key={field.id} player={field.name} detail={field.kind === 'manual' ? 'Puntos manuales' : `${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} por unidad`} value={value} min={field.kind === 'manual' ? -999 : 0} max={999} disabled={controlsDisabled} onChange={(next) => updateScore(player.id, field.id, next).catch(() => undefined)} />
+                <ScoreValueInput key={field.id} name={field.name} kind={field.kind} pointsPerUnit={field.pointsPerUnit} value={value} disabled={controlsDisabled} onSave={(next) => updateScore(selfPlayer.id, field.id, next)} />
               );
             })}
           </View>
-        ))}
+        ) : <View style={styles.joinCard}><Text style={styles.durationHint}>Unite a la partida con tu nombre para cargar tus puntos.</Text>{!isHost && <Button mode="outlined" onPress={() => router.push('/join')}>Unirme a la partida</Button>}</View>}
 
       </ScrollView>
     </SafeAreaView>
@@ -259,9 +293,11 @@ const styles = StyleSheet.create({
   topSpacer: { width: 38 },
   title: { color: colors.ink, fontSize: 34, fontWeight: '800', letterSpacing: -1.1, marginTop: 13 },
   subtitle: { color: colors.muted, fontSize: 15, marginTop: 4 },
+  finishedAt: { color: colors.muted, fontSize: 13, marginTop: 6 },
   status: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.mint, borderRadius: 18, flexDirection: 'row', gap: 7, marginTop: 17, paddingHorizontal: 11, paddingVertical: 7 },
   statusDot: { borderRadius: 4, height: 7, width: 7 },
   statusText: { color: colors.forest, fontSize: 10, fontWeight: '800', letterSpacing: 0.7 },
+  inviteSection: { gap: 10, marginTop: 12 },
   durationCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 3, marginTop: 14, padding: 16 },
   durationLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   durationValue: { color: colors.ink, fontSize: 27, fontWeight: '800' },
@@ -313,6 +349,9 @@ const styles = StyleSheet.create({
   fieldDetails: { flex: 1, paddingRight: 6 },
   fieldName: { color: colors.ink, fontSize: 14, fontWeight: '700' },
   fieldPoints: { color: colors.muted, fontSize: 11, marginTop: 3 },
+  scoreInputRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: 1, flexDirection: 'row', flexWrap: 'wrap', minHeight: 64, paddingVertical: 9 },
+  scoreNumberInput: { borderColor: colors.line, borderRadius: 10, borderWidth: 1, color: colors.ink, fontSize: 17, fontWeight: '700', minWidth: 85, padding: 9, textAlign: 'center' },
+  inputError: { color: colors.error, fontSize: 11, width: '100%' },
   counter: { alignItems: 'center', flexDirection: 'row' },
   counterValue: { color: colors.ink, fontSize: 17, fontWeight: '800', minWidth: 29, textAlign: 'center' },
   finishButton: { marginTop: 7 },

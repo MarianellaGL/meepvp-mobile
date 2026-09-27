@@ -39,7 +39,7 @@ export type ScoringRule = { id: string; bggId?: number; gameName: string; name: 
 export type CreateScoringRule = Omit<ScoringRule, 'id' | 'createdAt' | 'fields'> & { fields: Omit<ScoreField, 'id'>[] };
 export type Player = { id: string; name: string };
 export type SessionTotal = { playerId: string; total: number };
-export type ScoreSession = { id: string; tableCode: string; ruleId: string; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: 'active' | 'paused' | 'finished'; playedSeconds: number; durationSeconds: number; runningSince?: string; pausedAt?: string; boardPhotoUpdatedAt?: string; createdAt: string; lastModified: string; totals: SessionTotal[]; winners: SessionTotal[] };
+export type ScoreSession = { id: string; tableCode: string; ruleId: string; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: 'active' | 'paused' | 'finished'; playedSeconds: number; durationSeconds: number; runningSince?: string; pausedAt?: string; boardPhotoUpdatedAt?: string; createdAt: string; lastModified: string; finishedAt?: string; totals: SessionTotal[]; winners: SessionTotal[] };
 export type ScheduledGame = { id: string; tableCode: string; gameName: string; ruleId?: string; scheduledAt: string; players: string[]; sessionId?: string; createdAt: string };
 export type AccountUser = { id: string; username: string; createdAt: string };
 export type AuthSession = { user: AccountUser; token: string };
@@ -93,19 +93,28 @@ export const api = {
   async extractPDF(asset: DocumentPickerAsset): Promise<PDFExtract> {
     const data = new FormData();
     if (Platform.OS === 'web' && asset.file) data.append('file', asset.file, asset.name);
-    else data.append('file', { uri: asset.uri, name: asset.name, type: 'application/pdf' } as unknown as Blob);
+    else data.append('file', new File(asset.uri), asset.name);
     let response: Response;
     try {
       response = await fetch(`${baseURL}/v1/pdf/extract`, { method: 'POST', body: data });
     } catch {
-      throw new Error('No pudimos conectar con el servicio de PDF. Revisá que la API esté activa y el celular use la misma red.');
+      let apiReachable = false;
+      try {
+        apiReachable = (await fetch(`${baseURL}/health`)).ok;
+      } catch {
+        // The health check is only used to distinguish connection and upload errors.
+      }
+      if (apiReachable) {
+        throw new Error('La API responde, pero no pudimos enviar el PDF. Probá con otro archivo o reintentá.');
+      }
+      throw new Error(`No pudimos conectar con la API en ${baseURL}. Revisá la red del dispositivo.`);
     }
     const body = await response.json().catch(() => null) as (PDFExtract & { error?: string }) | null;
     if (!response.ok) throw new Error(apiErrorMessage(body?.error, response.status));
     if (!body || typeof body.text !== 'string' || !Array.isArray(body.scoringExcerpts)) {
       throw new Error('El servicio de PDF devolvió una respuesta inválida.');
     }
-    return body;
+    return { ...body, fileName: asset.name };
   },
   createTable: (name: string) =>
     request<AnonymousTable>('/v1/tables', { method: 'POST', body: JSON.stringify({ name }) }),

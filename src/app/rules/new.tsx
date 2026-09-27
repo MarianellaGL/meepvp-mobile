@@ -6,6 +6,7 @@ import { IconButton, SegmentedButtons, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CreateScoringRule, FieldKind } from '@/lib/api';
+import { extractScoringTable } from '@/lib/scoringTable';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
@@ -16,13 +17,14 @@ const emptyField = (): DraftField => ({ name: '', kind: 'checkbox', pointsPerUni
 
 export default function NewRuleScreen() {
   const { gameId, game: selectedGame, fromPdf, fromImage, planId } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; fromImage?: string; planId?: string }>();
+  const { createScoringRule, setScheduledGameRule, error, pdfDraft, setPDFDraft } = useTableScoreStore();
+  const importedTable = (fromPdf === '1' || fromImage === '1') && pdfDraft ? extractScoringTable(pdfDraft) : null;
   const [gameName, setGameName] = useState(selectedGame ?? '');
   const [name, setName] = useState('Puntuación estándar');
   const [winCondition, setWinCondition] = useState<'highest_total' | 'lowest_total'>('highest_total');
   const [isPublic, setIsPublic] = useState(false);
-  const [fields, setFields] = useState<DraftField[]>([emptyField()]);
+  const [fields, setFields] = useState<DraftField[]>(() => importedTable?.categories.map((category) => ({ name: category, kind: 'manual', pointsPerUnit: '0' })) ?? [emptyField()]);
   const [isSaving, setIsSaving] = useState(false);
-  const { createScoringRule, setScheduledGameRule, error, pdfDraft, setPDFDraft } = useTableScoreStore();
   const account = useAuthStore((state) => state.user);
 
   const updateField = (index: number, updates: Partial<DraftField>) =>
@@ -67,8 +69,10 @@ export default function NewRuleScreen() {
         {(fromPdf === '1' || fromImage === '1') && pdfDraft && (
           <View style={styles.formCard}>
             <Text style={styles.sectionLabel}>DESDE {pdfDraft.fileName.toUpperCase()}</Text>
-            <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? `Usá estos fragmentos como referencia. Revisá ${fromImage === '1' ? 'la imagen' : 'el PDF'} antes de asignar puntos.` : 'No encontramos fragmentos sobre puntuación en el texto extraído.'}</Text>
-            {pdfDraft.scoringExcerpts.slice(0, 5).map((excerpt, index) => <Text key={`${index}-${excerpt.slice(0, 10)}`} style={styles.pdfExcerpt}>{excerpt}</Text>)}
+            {importedTable ? <Text style={styles.shareCopy}>Cargamos {importedTable.categories.length} categorías de la tabla. Corregí los nombres si el OCR leyó algo mal. Cada campo acepta el puntaje final de esa categoría por jugador.</Text> : <>
+              <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? `Usá estos fragmentos como referencia. Revisá ${fromImage === '1' ? 'la imagen' : 'el PDF'} antes de asignar puntos.` : 'No encontramos fragmentos sobre puntuación en el texto extraído.'}</Text>
+              {pdfDraft.scoringExcerpts.slice(0, 5).map((excerpt, index) => <Text key={`${index}-${excerpt.slice(0, 10)}`} style={styles.pdfExcerpt}>{excerpt}</Text>)}
+            </>}
           </View>
         )}
 
@@ -99,7 +103,7 @@ export default function NewRuleScreen() {
         ))}
         <Button mode="outlined" icon="plus" onPress={() => setFields((current) => [...current, emptyField()])}>Agregar campo</Button>
         {error && <Text style={styles.error}>{error}</Text>}
-        <Button mode="contained" icon="content-save-outline" loading={isSaving} disabled={!gameName.trim() || fields.some((field) => !field.name.trim())} onPress={saveRule} style={styles.save}>{planId ? 'Guardar para la partida programada' : 'Guardar y elegir jugadores'}</Button>
+        <Button mode="contained" icon="content-save-outline" loading={isSaving} disabled={!gameName.trim() || fields.some((field) => !field.name.trim())} onPress={saveRule} style={styles.save}>{planId ? 'Guardar para la partida programada' : 'Guardar tabla y elegir jugadores'}</Button>
       </ScrollView>
     </SafeAreaView>
   );

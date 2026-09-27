@@ -35,13 +35,13 @@ export default function HistoryScreen() {
           const myScore = game.totals.find((total) => total.playerId === game.myPlayerId)?.total ?? 0;
           const winners = game.winners.map((winner) => game.players.find((player) => player.id === winner.playerId)?.name ?? 'Jugador');
           return <View key={game.id} style={styles.card}>
-            <ScoreGameCard title={game.gameName} detail={`${game.players.length} jugadores · ${formatPlayedDuration(game.durationSeconds)} · ${new Date(game.createdAt).toLocaleDateString('es-AR')}`} score={myScore} label="TU PUNTAJE" featured />
+            <ScoreGameCard title={game.gameName} detail={`${game.players.length} jugadores · ${formatPlayedDuration(game.durationSeconds)} · ${new Date(game.finishedAt ?? game.lastModified).toLocaleString('es-AR')}`} score={myScore} label="TU PUNTAJE" featured />
             <Text style={styles.winner}>{winners.length === 1 ? `Ganó ${winners[0]}` : `Empate: ${winners.join(', ')}`}</Text>
             <AppButton mode="outlined" onPress={() => router.push(`/sessions/${game.id}`)}>Ver puntuación</AppButton>
           </View>;
         }) : finished ? (
           <View style={styles.card}>
-            <ScoreGameCard title={rule?.gameName ?? 'Partida'} detail={`${finished.players.length} jugadores · ${formatPlayedDuration(finished.durationSeconds)}`} score={bestScore ?? 0} label="ÚLTIMA PARTIDA" featured />
+            <ScoreGameCard title={rule?.gameName ?? 'Partida'} detail={`${finished.players.length} jugadores · ${formatPlayedDuration(finished.durationSeconds)} · ${new Date(finished.finishedAt ?? finished.lastModified).toLocaleString('es-AR')}`} score={bestScore ?? 0} label="ÚLTIMA PARTIDA" featured />
             <AppButton mode="outlined" onPress={() => router.push(`/sessions/${finished.id}`)}>Ver puntuación</AppButton>
           </View>
         ) : (

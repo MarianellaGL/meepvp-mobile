@@ -1,4 +1,4 @@
 allowBuilds:
-  unrs-resolver: set this to true or false
+  unrs-resolver: true
 minimumReleaseAgeExclude:
   - '@decodadev02/scoreui@0.1.0'

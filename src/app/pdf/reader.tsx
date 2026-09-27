@@ -7,6 +7,7 @@ import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, type PDFExtract } from '@/lib/api';
+import { extractScoringTable } from '@/lib/scoringTable';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
@@ -31,6 +32,7 @@ export default function PDFReaderScreen() {
   const resolvedGameId = Number(gameId) > 0 ? Number(gameId) : matchedGame?.bggId;
   const savedDocument = savedPDFs.find((item) => resolvedGameId ? item.gameId === resolvedGameId : item.gameName.toLocaleLowerCase() === name.toLocaleLowerCase())?.document;
   const activeDocument = document ?? (replacingDocument ? null : savedDocument) ?? null;
+  const scoringTable = activeDocument ? extractScoringTable(activeDocument) : null;
 
   async function saveCurrentPDF(pdf: PDFExtract) {
     if (!name) throw new Error('Ingresá el nombre del juego para guardar este PDF.');
@@ -95,14 +97,14 @@ export default function PDFReaderScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE REGLAMENTOS</Text><View style={styles.topSpacer} /></View>
         <Text style={styles.title}>Leer un reglamento</Text>
-        <Text style={styles.subtitle}>Elegí un PDF. Te mostraremos el texto y los fragmentos que hablan de puntos.</Text>
+        <Text style={styles.subtitle}>Elegí un PDF. Si contiene una tabla de puntos, armaremos sus categorías para crear la planilla.</Text>
 
         <View style={styles.card}>
           <TextInput label="Nombre del juego" value={gameNameDraft} onChangeText={(value) => { setGameNameDraft(value); setSavedStatus(null); }} mode="outlined" />
           <Text style={styles.cardTitle}>{loading ? selectedFile : activeDocument?.fileName ?? selectedFile ?? 'Elegí un PDF'}</Text>
           {activeDocument && !loading && <Text style={styles.muted}>{activeDocument.pages} páginas</Text>}
           <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>{activeDocument ? 'Elegir otro PDF' : 'Elegir PDF'}</Button>
-          <Text style={styles.muted}>Funcionan mejor los PDF con texto seleccionable. Las páginas escaneadas todavía necesitan OCR.</Text>
+          <Text style={styles.muted}>Los PDF escaneados también se leen y pueden tardar un poco más.</Text>
         </View>
 
         {loading && <ActivityIndicator size="large" style={styles.loader} />}
@@ -110,16 +112,37 @@ export default function PDFReaderScreen() {
         {savedStatus && <Text style={styles.saved}>{savedStatus}</Text>}
         {activeDocument && !loading && (
           <>
-            <Text style={styles.heading}>Fragmentos sobre puntuación</Text>
-            {activeDocument.scoringExcerpts.length ? activeDocument.scoringExcerpts.map((excerpt, index) => (
-              <View key={`${index}-${excerpt.slice(0, 12)}`} style={styles.excerpt}><Text style={styles.excerptText}>{excerpt}</Text></View>
-            )) : <View style={styles.card}><Text style={styles.muted}>No encontramos fragmentos sobre puntos. Podés leer el texto completo abajo.</Text></View>}
+            {scoringTable ? <>
+              <Text style={styles.heading}>Tabla de puntuación</Text>
+              <Text style={styles.muted}>{scoringTable.categories.length} categorías detectadas. Podés corregirlas al crear la planilla. Cada jugador cargará sus puntos cuando se una a la partida.</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tableScroll}>
+                <View style={styles.table}>
+                  <View style={[styles.tableRow, styles.tableHeader]}>
+                    <Text style={[styles.tableCategory, styles.tableHeaderText]}>Categoría</Text>
+                    {scoringTable.columns.map((column) => <Text key={column} style={[styles.tableCell, styles.tableHeaderText]}>{column}</Text>)}
+                  </View>
+                  {scoringTable.categories.map((category) => <View key={category} style={styles.tableRow}>
+                    <Text style={styles.tableCategory}>{category}</Text>
+                    {scoringTable.columns.map((column) => <Text key={column} style={styles.tableCell}>—</Text>)}
+                  </View>)}
+                  <View style={[styles.tableRow, styles.tableTotal]}>
+                    <Text style={styles.tableCategory}>Puntuación total</Text>
+                    {scoringTable.columns.map((column) => <Text key={column} style={styles.tableCell}>—</Text>)}
+                  </View>
+                </View>
+              </ScrollView>
+            </> : <>
+              <Text style={styles.heading}>Fragmentos sobre puntuación</Text>
+              {activeDocument.scoringExcerpts.length ? activeDocument.scoringExcerpts.map((excerpt, index) => (
+                <View key={`${index}-${excerpt.slice(0, 12)}`} style={styles.excerpt}><Text style={styles.excerptText}>{excerpt}</Text></View>
+              )) : <View style={styles.card}><Text style={styles.muted}>No encontramos fragmentos sobre puntos. Podés leer el texto completo abajo.</Text></View>}
+            </>}
             <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Ocultar texto' : 'Leer texto extraído'}</Button>
-            {showFullText && <View style={styles.card}><Text selectable style={styles.bodyText}>{activeDocument.text || 'Este PDF no tiene texto seleccionable.'}</Text></View>}
+            {showFullText && <View style={styles.card}><Text selectable style={styles.bodyText}>{activeDocument.text || 'No pudimos encontrar texto en este PDF.'}</Text></View>}
             <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar el PDF.')).finally(() => setSaving(false)); }}>Guardar PDF en biblioteca</Button>
             <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>Crear planilla</Button>
             {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el PDF o crear una planilla.</Text>}
-            <Text style={styles.muted}>Revisá el reglamento antes de agregar campos y puntos. Ninguna planilla se crea automáticamente.</Text>
+            <Text style={styles.muted}>{scoringTable ? 'Las categorías se cargarán en la planilla para que las revises antes de empezar una partida.' : 'Revisá el reglamento antes de agregar campos y puntos.'}</Text>
           </>
         )}
       </ScrollView>
@@ -146,4 +169,12 @@ const styles = StyleSheet.create({
   excerpt: { backgroundColor: colors.mint, borderRadius: 15, padding: 14 },
   excerptText: { color: colors.ink, fontSize: 14, lineHeight: 21 },
   bodyText: { color: colors.ink, fontSize: 13, lineHeight: 20 },
+  tableScroll: { paddingBottom: 3 },
+  table: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 15, borderWidth: 1, overflow: 'hidden' },
+  tableRow: { flexDirection: 'row', alignItems: 'center', borderBottomColor: colors.line, borderBottomWidth: 1, minHeight: 48 },
+  tableHeader: { backgroundColor: colors.forest },
+  tableHeaderText: { color: colors.paper, fontWeight: '800' },
+  tableCategory: { color: colors.ink, fontSize: 12, fontWeight: '700', padding: 9, width: 210 },
+  tableCell: { color: colors.muted, fontSize: 13, textAlign: 'center', width: 46 },
+  tableTotal: { backgroundColor: colors.mint, borderBottomWidth: 0 },
 });

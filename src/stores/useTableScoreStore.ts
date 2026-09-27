@@ -49,6 +49,7 @@ type TableScoreState = {
   joinSessionAsMe: (name: string) => Promise<void>;
   setMyPlayerName: (name: string) => Promise<void>;
   loadSession: (sessionId: string) => Promise<void>;
+  refreshSession: (sessionId: string) => Promise<void>;
   updateScore: (playerId: string, fieldId: string, value: number) => Promise<void>;
   adjustPoints: (playerId: string, delta: number) => Promise<void>;
   finishSession: () => Promise<void>;
@@ -326,6 +327,15 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     } finally {
       set({ isLoadingSession: false });
     }
+  },
+  async refreshSession(sessionId) {
+    const { session, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();
+    if (session?.id !== sessionId || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
+    try {
+      const updated = await api.getSession(sessionId);
+      const current = get();
+      if (current.session?.id === sessionId && !current.isUpdatingScore && !current.isAdjustingPoints && !current.isFinishingSession && Date.parse(updated.lastModified) >= Date.parse(current.session.lastModified)) set({ session: updated });
+    } catch { /* Keep the last known score while the connection recovers. */ }
   },
   async updateScore(playerId, fieldId, value) {
     const { session, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();

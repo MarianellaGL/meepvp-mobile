@@ -6,7 +6,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api, baseURL } from '@/lib/api';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
@@ -14,8 +13,6 @@ import { AppButton as Button } from '@/components/AppButton';
 
 export default function ProfileScreen() {
   const [nameDraft, setNameDraft] = useState<string | null>(null);
-  const [apiStatus, setAPIStatus] = useState<string | null>(null);
-  const [checkingAPI, setCheckingAPI] = useState(false);
   const { myPlayerName, username, setMyPlayerName } = useTableScoreStore();
   const { user, stats, isBusy, isRestoring, error: authError, logOut, refresh } = useAuthStore();
   const name = nameDraft ?? (myPlayerName || username || 'Vos');
@@ -23,18 +20,6 @@ export default function ProfileScreen() {
   useFocusEffect(useCallback(() => {
     if (user) refresh().catch(() => undefined);
   }, [user, refresh]));
-
-  async function checkAPI() {
-    setCheckingAPI(true);
-    try {
-      const health = await api.getHealth();
-      setAPIStatus(health.status === 'ok' ? 'API conectada.' : 'La API devolvió un estado inesperado.');
-    } catch (cause) {
-      setAPIStatus(cause instanceof Error ? `No pudimos conectar con la API: ${cause.message}` : 'No pudimos conectar con la API.');
-    } finally {
-      setCheckingAPI(false);
-    }
-  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -83,10 +68,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.nameCard}>
-          <Text style={styles.featureTitle}>Conexión con la API</Text>
-          <Text style={styles.featureCopy}>{baseURL}</Text>
-          {apiStatus && <Text style={styles.featureCopy}>{apiStatus}</Text>}
-          <Button mode="outlined" loading={checkingAPI} disabled={checkingAPI} onPress={checkAPI}>Comprobar conexión</Button>
+          <Text style={styles.featureTitle}>Listado de juegos</Text>
+          <Text style={styles.featureCopy}>Explorá los juegos que importaste a tu colección.</Text>
+          <Button mode="outlined" icon="bookshelf" onPress={() => router.push('/games')}>Ver listado de juegos</Button>
         </View>
 
         <Text style={styles.sectionLabel}>EXPLORAR</Text>
