@@ -4,13 +4,19 @@ import * as Notifications from 'expo-notifications';
 import { ScoreUIProvider } from '@decodadev02/scoreui';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 export default function RootLayout() {
   const restore = useTableScoreStore((state) => state.restore);
+  const restoreAuth = useAuthStore((state) => state.restore);
 
   useEffect(() => {
     restore().catch(() => undefined);
   }, [restore]);
+
+  useEffect(() => {
+    restoreAuth().catch(() => undefined);
+  }, [restoreAuth]);
 
   useEffect(() => {
     const openReminder = (response: Notifications.NotificationResponse) => {

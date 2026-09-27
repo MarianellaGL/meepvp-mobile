@@ -92,6 +92,7 @@ export default function ScoringScreen() {
   const isFinished = session.status === 'finished';
   const controlsDisabled = isFinished || isUpdatingScore || isAdjustingPoints || isFinishingSession;
   const selfPlayer = session.players.find((player) => player.id === selfPlayerId) ?? session.players.find((player) => player.name.toLocaleLowerCase() === selfName.toLocaleLowerCase());
+  const winners = isFinished ? (session.winners ?? []).map((result) => ({ ...result, name: session.players.find((player) => player.id === result.playerId)?.name ?? 'Player' })) : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -107,6 +108,13 @@ export default function ScoringScreen() {
           <View style={[styles.statusDot, { backgroundColor: isFinished ? colors.orange : colors.forest }]} />
           <Text style={styles.statusText}>{isFinished ? 'FINISHED GAME' : 'GAME IN PROGRESS'}</Text>
         </View>
+        {isFinished && winners.length > 0 && (
+          <View style={styles.winnerCard}>
+            <MaterialCommunityIcons name="trophy" size={31} color={colors.orangeInk} />
+            <Text style={styles.winnerTitle}>{winners.length === 1 ? `Winner: ${winners[0].name}` : `Tie: ${winners.map((winner) => winner.name).join(', ')}`}</Text>
+            <Text style={styles.winnerPoints}>{winners[0].total} points · {rule.winCondition === 'lowest_total' ? 'lowest total wins' : 'highest total wins'}</Text>
+          </View>
+        )}
         {error && <Text style={styles.topError}>{error}</Text>}
         {isFinished && isHost && <Button mode="contained" icon="restart" loading={isReopeningSession} onPress={() => reopenSession().catch(() => undefined)} style={styles.reopenButton}>Reopen game to edit scores</Button>}
 
@@ -142,6 +150,16 @@ export default function ScoringScreen() {
           </View>
         </View>
 
+        {!isFinished && isHost && (confirmFinish ? (
+          <View style={styles.finishConfirm}>
+            <Text style={styles.finishConfirmText}>Finish this game and show the winner? Scoring will pause until you reopen it.</Text>
+            <View style={styles.finishActions}>
+              <Button mode="text" onPress={() => setConfirmFinish(false)}>Cancel</Button>
+              <Button mode="contained" loading={isFinishingSession} disabled={controlsDisabled} onPress={() => finishSession().then(() => setConfirmFinish(false)).catch(() => undefined)}>Finish game</Button>
+            </View>
+          </View>
+        ) : <Button mode="outlined" icon="flag-checkered" disabled={controlsDisabled} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Finish game</Button>)}
+
         <View style={styles.sectionHeading}>
           <Text style={styles.eyebrow}>THE DETAILS</Text>
           <Text variant="headlineSmall" style={styles.heading}>Count the points</Text>
@@ -166,15 +184,6 @@ export default function ScoringScreen() {
           </View>
         ))}
 
-        {!isFinished && (confirmFinish ? (
-          <View style={styles.finishConfirm}>
-            <Text style={styles.finishConfirmText}>Finish this game? Scoring will pause until you reopen it.</Text>
-            <View style={styles.finishActions}>
-              <Button mode="text" onPress={() => setConfirmFinish(false)}>Cancel</Button>
-              <Button mode="contained" loading={isFinishingSession} disabled={controlsDisabled} onPress={() => finishSession().then(() => setConfirmFinish(false)).catch(() => undefined)}>Finish game</Button>
-            </View>
-          </View>
-        ) : <Button mode="outlined" icon="flag-checkered" disabled={controlsDisabled} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Finish game</Button>)}
       </ScrollView>
     </SafeAreaView>
   );
@@ -209,6 +218,9 @@ const styles = StyleSheet.create({
   saveMessage: { color: colors.forest, fontSize: 12, fontWeight: '700' },
   topError: { color: colors.error, marginTop: 12 },
   reopenButton: { alignSelf: 'flex-start', marginTop: 15 },
+  winnerCard: { alignItems: 'center', backgroundColor: colors.orangePale, borderRadius: 22, gap: 8, marginTop: 17, padding: 22 },
+  winnerTitle: { color: colors.ink, fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  winnerPoints: { color: colors.orangeInk, fontSize: 13, fontWeight: '700', textAlign: 'center' },
   finishConfirm: { backgroundColor: colors.orangePale, borderRadius: 18, gap: 11, marginTop: 14, padding: 15 },
   finishConfirmText: { color: colors.ink, fontSize: 13, lineHeight: 19 },
   finishActions: { flexDirection: 'row', justifyContent: 'flex-end' },

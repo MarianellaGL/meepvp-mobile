@@ -1,18 +1,52 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScoreTextField as TextInput } from '@decodadev02/scoreui';
-import { Text } from 'react-native-paper';
+import { router, useFocusEffect } from 'expo-router';
+import { Text, TextInput as PasswordInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { api, baseURL } from '@/lib/api';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 
 export default function ProfileScreen() {
   const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [apiStatus, setAPIStatus] = useState<string | null>(null);
+  const [checkingAPI, setCheckingAPI] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [accountName, setAccountName] = useState('');
+  const [password, setPassword] = useState('');
   const { myPlayerName, username, setMyPlayerName } = useTableScoreStore();
+  const { user, stats, isBusy, isRestoring, error: authError, signUp, logIn, logOut, refresh } = useAuthStore();
   const name = nameDraft ?? (myPlayerName || username || 'You');
+
+  useFocusEffect(useCallback(() => {
+    if (user) refresh().catch(() => undefined);
+  }, [user, refresh]));
+
+  async function submitAccount() {
+    try {
+      if (authMode === 'signup') await signUp(accountName, password);
+      else await logIn(accountName, password);
+      setPassword('');
+    } catch { /* The account store displays the error. */ }
+  }
+
+  async function checkAPI() {
+    setCheckingAPI(true);
+    try {
+      const health = await api.getHealth();
+      setAPIStatus(health.status === 'ok' ? 'API connected.' : 'The API returned an unexpected status.');
+    } catch (cause) {
+      setAPIStatus(cause instanceof Error ? `Could not reach the API: ${cause.message}` : 'Could not reach the API.');
+    } finally {
+      setCheckingAPI(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -28,20 +62,53 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.nameCard}>
+          <Text style={styles.featureTitle}>MeepVP account</Text>
+          {isRestoring ? <Text style={styles.featureCopy}>Restoring your account…</Text> : user ? (
+            <>
+              <Text style={styles.featureCopy}>Signed in as @{user.username}. Your game stats are visible only to this account.</Text>
+              <View style={styles.statsRow}>
+                <Text style={styles.stat}>{stats?.finishedGames ?? 0} games</Text>
+                <Text style={styles.stat}>{stats?.wins ?? 0} wins</Text>
+                <Text style={styles.stat}>{stats?.ties ?? 0} ties</Text>
+                <Text style={styles.stat}>{stats?.totalPoints ?? 0} points</Text>
+              </View>
+              <Button mode="outlined" loading={isBusy} disabled={isBusy} onPress={() => logOut().catch(() => undefined)}>Log out</Button>
+            </>
+          ) : (
+            <>
+              <Text style={styles.featureCopy}>Create an account to keep your stats across devices and share sheets with the community.</Text>
+              <TextInput label="Username" value={accountName} onChangeText={setAccountName} autoCapitalize="none" mode="outlined" />
+              <PasswordInput label="Password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" mode="outlined" />
+              {authMode === 'signup' && <Text style={styles.featureCopy}>Use 3–30 letters, numbers, or underscores, and a password of at least 12 characters.</Text>}
+              <Button mode="contained" loading={isBusy} disabled={isBusy || !accountName.trim() || !password} onPress={() => submitAccount().catch(() => undefined)}>{authMode === 'signup' ? 'Create account' : 'Log in'}</Button>
+              <Button mode="text" onPress={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}>{authMode === 'login' ? 'New here? Create an account' : 'Already have an account? Log in'}</Button>
+            </>
+          )}
+          {authError && <Text style={styles.authError}>{authError}</Text>}
+        </View>
+
+        <View style={styles.nameCard}>
           <Text style={styles.featureTitle}>Your player name</Text>
           <Text style={styles.featureCopy}>This name is added to new games so your score appears on the table.</Text>
           <TextInput label="Player name" value={name} onChangeText={setNameDraft} mode="outlined" />
           <Button mode="contained" disabled={!name.trim()} onPress={() => setMyPlayerName(name)}>Save name</Button>
         </View>
 
-        <Text style={styles.sectionLabel}>COMING LATER</Text>
+        <View style={styles.nameCard}>
+          <Text style={styles.featureTitle}>API connection</Text>
+          <Text style={styles.featureCopy}>{baseURL}</Text>
+          {apiStatus && <Text style={styles.featureCopy}>{apiStatus}</Text>}
+          <Button mode="outlined" loading={checkingAPI} disabled={checkingAPI} onPress={checkAPI}>Check connection</Button>
+        </View>
+
+        <Text style={styles.sectionLabel}>EXPLORE</Text>
         <View style={styles.featureCard}>
           <View style={styles.featureIcon}><MaterialCommunityIcons name="history" size={23} color={colors.forest} /></View>
-          <View style={styles.featureText}><Text style={styles.featureTitle}>Game history</Text><Text style={styles.featureCopy}>Revisit your favorite game nights.</Text></View>
+          <View style={styles.featureText}><Text style={styles.featureTitle}>Game history</Text><Text style={styles.featureCopy}>View your last finished game.</Text><Button mode="text" onPress={() => router.push('/history')}>Open history</Button></View>
         </View>
         <View style={styles.featureCard}>
           <View style={[styles.featureIcon, { backgroundColor: colors.orangePale }]}><MaterialCommunityIcons name="account-group-outline" size={23} color={colors.orangeInk} /></View>
-          <View style={styles.featureText}><Text style={styles.featureTitle}>Community sheets</Text><Text style={styles.featureCopy}>Share scoring rules with other players.</Text></View>
+          <View style={styles.featureText}><Text style={styles.featureTitle}>Community sheets</Text><Text style={styles.featureCopy}>Find scoring rules shared by other players.</Text><Button mode="text" onPress={() => router.push('/community/rules')}>Browse sheets</Button></View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -67,4 +134,7 @@ const styles = StyleSheet.create({
   featureText: { flex: 1 },
   featureTitle: { color: colors.ink, fontSize: 15, fontWeight: '800' },
   featureCopy: { color: colors.muted, fontSize: 12, marginTop: 3 },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stat: { backgroundColor: colors.mint, borderRadius: 10, color: colors.forest, fontSize: 12, fontWeight: '800', padding: 9 },
+  authError: { color: colors.error, fontSize: 12 },
 });

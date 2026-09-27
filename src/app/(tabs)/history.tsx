@@ -1,16 +1,22 @@
+import { useCallback } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { ScoreGameCard } from '@decodadev02/scoreui';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
 
 export default function HistoryScreen() {
   const session = useTableScoreStore((state) => state.session);
   const rules = useTableScoreStore((state) => state.rules);
+  const account = useAuthStore((state) => state.user);
+  const accountSessions = useAuthStore((state) => state.sessions);
+  const refreshAccount = useAuthStore((state) => state.refresh);
+  useFocusEffect(useCallback(() => { if (account) refreshAccount().catch(() => undefined); }, [account, refreshAccount]));
   const finished = session?.status === 'finished' ? session : null;
   const rule = rules.find((item) => item.id === finished?.ruleId);
   const bestScore = finished?.totals.reduce<number | null>((best, player) => {
@@ -23,8 +29,16 @@ export default function HistoryScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.eyebrow}>GAME NIGHTS</Text>
         <Text style={styles.title}>Historial</Text>
-        <Text style={styles.subtitle}>Tu última partida terminada, con los puntos guardados.</Text>
-        {finished ? (
+        <Text style={styles.subtitle}>{account ? 'Tus partidas terminadas y estadísticas de esta cuenta.' : 'Tu última partida terminada, guardada en este dispositivo.'}</Text>
+        {account ? accountSessions.filter((game) => game.status === 'finished').map((game) => {
+          const myScore = game.totals.find((total) => total.playerId === game.myPlayerId)?.total ?? 0;
+          const winners = game.winners.map((winner) => game.players.find((player) => player.id === winner.playerId)?.name ?? 'Jugador');
+          return <View key={game.id} style={styles.card}>
+            <ScoreGameCard title={game.gameName} detail={`${game.players.length} jugadores · ${new Date(game.createdAt).toLocaleDateString()}`} score={myScore} label="TU PUNTAJE" featured />
+            <Text style={styles.winner}>{winners.length === 1 ? `Ganó ${winners[0]}` : `Empate: ${winners.join(', ')}`}</Text>
+            <AppButton mode="outlined" onPress={() => router.push(`/sessions/${game.id}`)}>Ver puntuación</AppButton>
+          </View>;
+        }) : finished ? (
           <View style={styles.card}>
             <ScoreGameCard title={rule?.gameName ?? 'Partida'} detail={`${finished.players.length} jugadores`} score={bestScore ?? 0} label="ÚLTIMA PARTIDA" featured />
             <AppButton mode="outlined" onPress={() => router.push(`/sessions/${finished.id}`)}>Ver puntuación</AppButton>
@@ -36,6 +50,7 @@ export default function HistoryScreen() {
             <AppButton mode="contained" onPress={() => router.navigate('/')}>Ir al inicio</AppButton>
           </View>
         )}
+        {account && accountSessions.every((game) => game.status !== 'finished') && <Text style={styles.subtitle}>Todavía no tenés partidas terminadas en esta cuenta.</Text>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -50,4 +65,5 @@ const styles = StyleSheet.create({
   card: { gap: 14, marginTop: 16 },
   empty: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 14, marginTop: 16, padding: 22 },
   emptyTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  winner: { color: colors.forest, fontSize: 14, fontWeight: '800' },
 });

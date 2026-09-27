@@ -61,6 +61,7 @@ export default function GameRulesScreen() {
           {gameSheets.length > 0 && <Button mode="contained" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: gameSheets[0].id } })}>Start scoring</Button>}
           <Button mode="contained" icon="table-edit" onPress={() => router.push({ pathname: '/rules/new', params: { gameId: String(id), game: String(name ?? '') } })}>Create scoring sheet</Button>
           <Button mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Upload PDF rulebook</Button>
+          <Button mode="outlined" icon="image-search-outline" onPress={() => router.push({ pathname: '/images/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Read points table image</Button>
           <Button mode="outlined" icon="account-group-outline" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })}>Find community scoring rules</Button>
           {savedPDF && <Text style={styles.emptyCopy}>Saved rulebook: {savedPDF.document.fileName}</Text>}
         </View>

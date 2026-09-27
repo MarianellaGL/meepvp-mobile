@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CreateScoringRule, FieldKind } from '@/lib/api';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 
@@ -14,7 +15,7 @@ type DraftField = { name: string; kind: FieldKind; pointsPerUnit: string };
 const emptyField = (): DraftField => ({ name: '', kind: 'checkbox', pointsPerUnit: '1' });
 
 export default function NewRuleScreen() {
-  const { gameId, game: selectedGame, fromPdf, planId } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; planId?: string }>();
+  const { gameId, game: selectedGame, fromPdf, fromImage, planId } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; fromImage?: string; planId?: string }>();
   const [gameName, setGameName] = useState(selectedGame ?? '');
   const [name, setName] = useState('Standard scoring');
   const [winCondition, setWinCondition] = useState<'highest_total' | 'lowest_total'>('highest_total');
@@ -22,6 +23,7 @@ export default function NewRuleScreen() {
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
   const [isSaving, setIsSaving] = useState(false);
   const { createScoringRule, setScheduledGameRule, error, pdfDraft, setPDFDraft } = useTableScoreStore();
+  const account = useAuthStore((state) => state.user);
 
   const updateField = (index: number, updates: Partial<DraftField>) =>
     setFields((current) => current.map((field, i) => i === index ? { ...field, ...updates } : field));
@@ -33,7 +35,7 @@ export default function NewRuleScreen() {
       gameName: gameName.trim(),
       name: name.trim() || 'Standard scoring',
       winCondition,
-      isPublic,
+      isPublic: isPublic && !!account,
       fields: fields.map((field) => ({
         name: field.name.trim(),
         kind: field.kind,
@@ -43,7 +45,7 @@ export default function NewRuleScreen() {
     setIsSaving(true);
     try {
       const savedRule = await createScoringRule(rule);
-      if (fromPdf === '1') setPDFDraft(null);
+      if (fromPdf === '1' || fromImage === '1') setPDFDraft(null);
       if (planId) {
         await setScheduledGameRule(planId, savedRule.id);
         router.replace('/schedule');
@@ -62,10 +64,10 @@ export default function NewRuleScreen() {
         <Text style={styles.title}>Make scoring simple.</Text>
         <Text style={styles.subtitle}>Set up the points once. Enjoy the game every time.</Text>
 
-        {fromPdf === '1' && pdfDraft && (
+        {(fromPdf === '1' || fromImage === '1') && pdfDraft && (
           <View style={styles.formCard}>
             <Text style={styles.sectionLabel}>FROM {pdfDraft.fileName.toUpperCase()}</Text>
-            <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? 'Use these passages as a reference. Check the PDF before assigning point values.' : 'No scoring passages were found in the selectable text.'}</Text>
+            <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? `Use these passages as a reference. Check the ${fromImage === '1' ? 'image' : 'PDF'} before assigning point values.` : 'No scoring passages were found in the extracted text.'}</Text>
             {pdfDraft.scoringExcerpts.slice(0, 5).map((excerpt, index) => <Text key={`${index}-${excerpt.slice(0, 10)}`} style={styles.pdfExcerpt}>{excerpt}</Text>)}
           </View>
         )}
@@ -79,7 +81,11 @@ export default function NewRuleScreen() {
         </View>
 
         <View style={styles.shareCard}>
-          <ScoreSwitch label="Share this sheet" value={isPublic} onChange={setIsPublic} />
+          <ScoreSwitch label="Share this sheet with the community" value={isPublic && !!account} onChange={setIsPublic} disabled={!account} />
+          {!account && <View style={styles.sharePrompt}>
+            <Text style={styles.shareCopy}>Log in to publish a scoring sheet to the community.</Text>
+            <Button mode="text" style={styles.loginButton} onPress={() => router.push('/profile')}>Go to account</Button>
+          </View>}
         </View>
 
         <View style={styles.sectionHeader}><View><Text style={styles.sectionLabel}>BUILD THE SCORE</Text><Text variant="headlineSmall" style={styles.heading}>Score fields</Text></View><Text style={styles.fieldCount}>{fields.length} total</Text></View>
@@ -110,7 +116,9 @@ const styles = StyleSheet.create({
   formCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 23, borderWidth: 1, gap: 14, padding: 17 },
   sectionLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   fieldLabel: { color: colors.ink, fontSize: 14, fontWeight: '700', marginTop: 3 },
-  shareCard: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 19, flexDirection: 'row', gap: 10, padding: 15 },
+  shareCard: { backgroundColor: colors.mint, borderRadius: 19, gap: 8, padding: 15 },
+  sharePrompt: { alignItems: 'flex-start', gap: 2 },
+  loginButton: { alignSelf: 'flex-start' },
   shareText: { flex: 1 },
   shareTitle: { color: colors.ink, fontSize: 14, fontWeight: '800' },
   shareCopy: { color: colors.muted, fontSize: 12, marginTop: 3 },

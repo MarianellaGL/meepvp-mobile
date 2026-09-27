@@ -335,10 +335,11 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     finally { set({ isAdjustingPoints: false }); }
   },
   async finishSession() {
-    const { session, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();
+    const { session, table, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();
     if (!session || session.status === 'finished' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
+    if (!table || table.code !== session.tableCode) throw new Error('Only the table host can finish this game.');
     set({ isFinishingSession: true, error: null });
-    try { set({ session: await api.finishSession(session.id) }); }
+    try { set({ session: await api.finishSession(session.id, table.hostToken) }); }
     catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to finish the game.' }); throw error; }
     finally { set({ isFinishingSession: false }); }
   },

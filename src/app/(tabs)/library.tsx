@@ -1,7 +1,8 @@
+import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScoreBadge, ScoreSkeleton } from '@decodadev02/scoreui';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,6 +15,19 @@ export default function LibraryScreen() {
   const rules = useTableScoreStore((state) => state.rules);
   const savedPDFs = useTableScoreStore((state) => state.savedPDFs);
   const hasRestored = useTableScoreStore((state) => state.hasRestored);
+  const loadRules = useTableScoreStore((state) => state.loadRules);
+  const [loadingRules, setLoadingRules] = useState(false);
+  const [rulesError, setRulesError] = useState<string | null>(null);
+
+  const refreshRules = useCallback(async () => {
+    setLoadingRules(true);
+    setRulesError(null);
+    try { await loadRules(); }
+    catch (cause) { setRulesError(cause instanceof Error ? cause.message : 'Could not load scoring sheets.'); }
+    finally { setLoadingRules(false); }
+  }, [loadRules]);
+
+  useFocusEffect(useCallback(() => { refreshRules().catch(() => undefined); }, [refreshRules]));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -50,6 +64,25 @@ export default function LibraryScreen() {
               </View>
               <MaterialCommunityIcons name="arrow-right" size={22} color={colors.orangeInk} />
             </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Read points table image" onPress={() => router.push('/images/reader')} style={[styles.banner, styles.communityBanner]}>
+              <View style={styles.bannerIcon}><MaterialCommunityIcons name="image-search-outline" size={25} color={colors.forest} /></View>
+              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Read a points table image</Text><Text style={styles.bannerCopy}>Turn a photo or screenshot into a scoring-sheet draft.</Text></View>
+              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
+            </Pressable>
+            <View style={styles.listHeading}>
+              <Text variant="titleMedium" style={styles.listTitle}>Scoring sheets in the database</Text>
+              <Text style={styles.count}>{rules.length} total</Text>
+            </View>
+            <Button mode="outlined" icon="refresh" loading={loadingRules} disabled={loadingRules} onPress={() => refreshRules().catch(() => undefined)}>Refresh sheets</Button>
+            {rulesError && <Text style={styles.error}>{rulesError}</Text>}
+            {rules.length ? rules.map((rule) => (
+              <View key={rule.id} style={styles.sheetCard}>
+                <Text style={styles.sheetGame}>{rule.gameName}</Text>
+                <Text style={styles.sheetName}>{rule.name}</Text>
+                <Text style={styles.gameMeta}>{rule.fields.length} scoring fields · {rule.isPublic ? 'Shared with community' : 'Not listed in community search'}</Text>
+                <Button mode="text" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: rule.id } })}>Start game</Button>
+              </View>
+            )) : !loadingRules && <Text style={styles.emptyCopy}>No scoring sheets have been saved yet.</Text>}
             {savedPDFs.length > 0 && (
               <View style={styles.savedPDFSection}>
                 <Text variant="titleMedium" style={styles.listTitle}>Saved rulebooks</Text>
@@ -122,4 +155,8 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.ink, fontWeight: '800', textAlign: 'center' },
   emptyCopy: { color: colors.muted, lineHeight: 20, textAlign: 'center' },
   loader: { marginTop: 35 },
+  sheetCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 5, padding: 15 },
+  sheetGame: { color: colors.orangeInk, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  sheetName: { color: colors.ink, fontSize: 17, fontWeight: '800' },
+  error: { color: colors.error },
 });

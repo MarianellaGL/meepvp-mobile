@@ -17,6 +17,8 @@ export type BGGCollection = {
   games?: CollectionGame[];
 };
 
+export type APIHealth = { status: 'ok' };
+
 export type RulesThread = { id: number; title: string; author: string; posts: number; url: string };
 export type GameRules = { status: 'ready' | 'processing'; retryAfterSeconds?: number; forumUrl?: string; totalThreads: number; threads: RulesThread[] };
 export type PDFExtract = { fileName: string; pages: number; text: string; scoringExcerpts: string[] };
@@ -34,24 +36,41 @@ export type ScoringRule = { id: string; bggId?: number; gameName: string; name: 
 export type CreateScoringRule = Omit<ScoringRule, 'id' | 'createdAt' | 'fields'> & { fields: Omit<ScoreField, 'id'>[] };
 export type Player = { id: string; name: string };
 export type SessionTotal = { playerId: string; total: number };
-export type ScoreSession = { id: string; tableCode: string; ruleId: string; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: string; createdAt: string; lastModified: string; totals: SessionTotal[] };
+export type ScoreSession = { id: string; tableCode: string; ruleId: string; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: string; createdAt: string; lastModified: string; totals: SessionTotal[]; winners: SessionTotal[] };
 export type ScheduledGame = { id: string; tableCode: string; gameName: string; ruleId?: string; scheduledAt: string; players: string[]; sessionId?: string; createdAt: string };
+export type AccountUser = { id: string; username: string; createdAt: string };
+export type AuthSession = { user: AccountUser; token: string };
+export type AccountStats = { finishedGames: number; wins: number; ties: number; totalPoints: number };
+export type AccountGameSession = ScoreSession & { gameName: string; myPlayerId: string };
 
-const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+export const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+let authToken: string | null = null;
+export function setAuthToken(token: string | null) { authToken = token; }
+export class APIRequestError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${baseURL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...options?.headers },
   });
   const body = (await response.json()) as T & { error?: string };
   if (!response.ok && response.status !== 202) {
-    throw new Error(body.error ?? 'Something went wrong.');
+    throw new APIRequestError(body.error ?? 'Something went wrong.', response.status);
   }
   return body;
 }
 
 export const api = {
+  getHealth: () => request<APIHealth>('/health'),
+  signUp: (username: string, password: string) => request<AuthSession>('/v1/auth/signup', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  logIn: (username: string, password: string) => request<AuthSession>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  logOut: () => request<{ status: 'ok' }>('/v1/auth/logout', { method: 'POST' }),
+  getMe: () => request<AccountUser>('/v1/me'),
+  getMyStats: () => request<AccountStats>('/v1/me/stats'),
+  getMySessions: () => request<AccountGameSession[]>('/v1/me/sessions'),
+  claimSession: (sessionId: string, playerId: string, hostToken: string) => request<{ status: 'ok' }>('/v1/me/claim-session', { method: 'POST', body: JSON.stringify({ sessionId, playerId, hostToken }) }),
   getCollection: (username: string) => request<BGGCollection>(`/v1/bgg/collections/${encodeURIComponent(username)}`),
   getGameRules: (gameId: number) => request<GameRules>(`/v1/bgg/games/${gameId}/rules`),
   async extractPDF(asset: DocumentPickerAsset): Promise<PDFExtract> {
@@ -86,6 +105,6 @@ export const api = {
   updateScores: (sessionId: string, values: ScoreSession['values']) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/scores`, { method: 'PUT', body: JSON.stringify({ values }) }),
   setScore: (sessionId: string, playerId: string, fieldId: string, value: number) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/scores`, { method: 'PATCH', body: JSON.stringify({ playerId, fieldId, value }) }),
   adjustPoints: (sessionId: string, playerId: string, delta: number) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/points`, { method: 'POST', body: JSON.stringify({ playerId, delta }) }),
-  finishSession: (sessionId: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/finish`, { method: 'POST' }),
+  finishSession: (sessionId: string, hostToken: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/finish`, { method: 'POST', headers: { 'X-Table-Token': hostToken } }),
   reopenSession: (sessionId: string, hostToken: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/reopen`, { method: 'POST', headers: { 'X-Table-Token': hostToken } }),
 };

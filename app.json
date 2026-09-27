@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "TableScore",
-    "slug": "tablescore",
+    "name": "MeepVP",
+    "slug": "meepvp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,7 +21,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-notifications"],
-    "scheme": "tablescore"
+    "plugins": ["expo-router", "expo-notifications", ["expo-image-picker", { "photosPermission": "Allow MeepVP to read a scoring table image you choose.", "cameraPermission": "Allow MeepVP to photograph a scoring table.", "microphonePermission": false }]],
+    "scheme": "meepvp"
   }
 }
