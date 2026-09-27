@@ -20,7 +20,7 @@ Notifications.setNotificationHandler({
 export async function requestReminderPermission(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync(channelId, { name: 'Game reminders', importance: Notifications.AndroidImportance.DEFAULT });
+    await Notifications.setNotificationChannelAsync(channelId, { name: 'Recordatorios de partidas', importance: Notifications.AndroidImportance.DEFAULT });
   }
   const existing = await Notifications.getPermissionsAsync();
   if (existing.granted) return true;
@@ -60,8 +60,8 @@ export async function syncScoreSheetReminders(games: ScheduledGame[]): Promise<v
     await Notifications.scheduleNotificationAsync({
       identifier,
       content: {
-        title: `Scoring sheet missing for ${game.gameName}`,
-        body: 'Your game is coming up. Create a sheet or choose one shared by the community.',
+        title: `Falta la planilla de ${game.gameName}`,
+        body: 'Se acerca la partida. Creá una planilla o elegí una de la comunidad.',
         data: { url: '/schedule' },
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(reminderAt), channelId },

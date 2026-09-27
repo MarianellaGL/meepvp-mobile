@@ -19,21 +19,21 @@ function QuickPoints({ playerId, manualPoints, disabled, onAdjust }: { playerId:
   const change = async (sign: 1 | -1) => {
     if (!valid || disabled || saving) return;
     setSaving(true);
-    setMessage('Saving…');
-    try { await onAdjust(playerId, sign * points); setMessage('Saved'); }
-    catch { setMessage('Could not save. Try again.'); }
+    setMessage('Guardando…');
+    try { await onAdjust(playerId, sign * points); setMessage('Guardado'); }
+    catch { setMessage('No pudimos guardar. Reintentá.'); }
     finally { setSaving(false); }
   };
 
   return (
     <View style={styles.quickPoints}>
-      <View style={styles.quickHeading}><Text style={styles.quickTitle}>Add points directly</Text><Text style={styles.quickTotal}>{manualPoints} manual pts</Text></View>
+      <View style={styles.quickHeading}><Text style={styles.quickTitle}>Sumar puntos directamente</Text><Text style={styles.quickTotal}>{manualPoints} puntos manuales</Text></View>
       <View style={styles.quickControls}>
-        <TextInput label="Points" value={amount} onChangeText={setAmount} keyboardType="number-pad" mode="outlined" style={styles.pointsInput} />
-        <Button mode="contained" icon="plus" disabled={disabled || saving || !valid} onPress={() => change(1)}>Add</Button>
-        <Button mode="outlined" icon="minus" disabled={disabled || saving || !valid} onPress={() => change(-1)}>Remove</Button>
+        <TextInput label="Puntos" value={amount} onChangeText={setAmount} keyboardType="number-pad" mode="outlined" style={styles.pointsInput} />
+        <Button mode="contained" icon="plus" disabled={disabled || saving || !valid} onPress={() => change(1)}>Sumar</Button>
+        <Button mode="outlined" icon="minus" disabled={disabled || saving || !valid} onPress={() => change(-1)}>Restar</Button>
       </View>
-      {!!message && <Text style={[styles.saveMessage, message.startsWith('Could not') && styles.error]}>{message}</Text>}
+      {!!message && <Text style={[styles.saveMessage, message.startsWith('No pudimos') && styles.error]}>{message}</Text>}
     </View>
   );
 }
@@ -46,7 +46,7 @@ export default function ScoringScreen() {
     session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, updateScore, adjustPoints, finishSession, reopenSession, joinSessionAsMe, error,
     isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isReopeningSession, isJoiningSession,
   } = useTableScoreStore();
-  const selfName = (myPlayerName || username || 'You').trim();
+  const selfName = (myPlayerName || username || 'Vos').trim();
   const isHost = !!session && !!table && table.code.toLocaleUpperCase() === session.tableCode.toLocaleUpperCase();
   const hostInSession = !!session?.players.some((player) => player.id === selfPlayerId || player.name.toLocaleLowerCase() === selfName.toLocaleLowerCase());
 
@@ -66,12 +66,12 @@ export default function ScoringScreen() {
     return (
       <SafeAreaView style={styles.centered}>
         {isRestoring || isLoadingSession || !error ? (
-          <><ActivityIndicator size="large" /><Text>Loading game…</Text></>
+          <><ActivityIndicator size="large" /><Text>Cargando partida…</Text></>
         ) : (
           <>
-            <Text variant="titleLarge" style={styles.centerTitle}>Could not load this game</Text>
+            <Text variant="titleLarge" style={styles.centerTitle}>No pudimos cargar esta partida</Text>
             <Text style={styles.error}>{error}</Text>
-            <Button mode="contained" onPress={() => loadSession(sessionId).catch(() => undefined)}>Try again</Button>
+            <Button mode="contained" onPress={() => loadSession(sessionId).catch(() => undefined)}>Reintentar</Button>
           </>
         )}
       </SafeAreaView>
@@ -83,7 +83,7 @@ export default function ScoringScreen() {
     return (
       <SafeAreaView style={styles.centered}>
         {error ? (
-          <><Text style={styles.error}>{error}</Text><Button mode="contained" onPress={() => loadRules().catch(() => undefined)}>Try again</Button></>
+          <><Text style={styles.error}>{error}</Text><Button mode="contained" onPress={() => loadRules().catch(() => undefined)}>Reintentar</Button></>
         ) : <ActivityIndicator size="large" />}
       </SafeAreaView>
     );
@@ -92,44 +92,44 @@ export default function ScoringScreen() {
   const isFinished = session.status === 'finished';
   const controlsDisabled = isFinished || isUpdatingScore || isAdjustingPoints || isFinishingSession;
   const selfPlayer = session.players.find((player) => player.id === selfPlayerId) ?? session.players.find((player) => player.name.toLocaleLowerCase() === selfName.toLocaleLowerCase());
-  const winners = isFinished ? (session.winners ?? []).map((result) => ({ ...result, name: session.players.find((player) => player.id === result.playerId)?.name ?? 'Player' })) : [];
+  const winners = isFinished ? (session.winners ?? []).map((result) => ({ ...result, name: session.players.find((player) => player.id === result.playerId)?.name ?? 'Jugador' })) : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} style={styles.backButton} />
-          <Text style={styles.topLabel}>SCORE TABLE</Text>
+          <Text style={styles.topLabel}>TABLA DE PUNTOS</Text>
           <View style={styles.topSpacer} />
         </View>
         <Text style={styles.title}>{rule.gameName}</Text>
         <Text style={styles.subtitle}>{rule.name}</Text>
         <View style={styles.status}>
           <View style={[styles.statusDot, { backgroundColor: isFinished ? colors.orange : colors.forest }]} />
-          <Text style={styles.statusText}>{isFinished ? 'FINISHED GAME' : 'GAME IN PROGRESS'}</Text>
+          <Text style={styles.statusText}>{isFinished ? 'PARTIDA TERMINADA' : 'PARTIDA EN CURSO'}</Text>
         </View>
         {isFinished && winners.length > 0 && (
           <View style={styles.winnerCard}>
             <MaterialCommunityIcons name="trophy" size={31} color={colors.orangeInk} />
-            <Text style={styles.winnerTitle}>{winners.length === 1 ? `Winner: ${winners[0].name}` : `Tie: ${winners.map((winner) => winner.name).join(', ')}`}</Text>
-            <Text style={styles.winnerPoints}>{winners[0].total} points · {rule.winCondition === 'lowest_total' ? 'lowest total wins' : 'highest total wins'}</Text>
+            <Text style={styles.winnerTitle}>{winners.length === 1 ? `Ganó ${winners[0].name}` : `Empate: ${winners.map((winner) => winner.name).join(', ')}`}</Text>
+            <Text style={styles.winnerPoints}>{winners[0].total} puntos · {rule.winCondition === 'lowest_total' ? 'gana el menor puntaje' : 'gana el mayor puntaje'}</Text>
           </View>
         )}
         {error && <Text style={styles.topError}>{error}</Text>}
-        {isFinished && isHost && <Button mode="contained" icon="restart" loading={isReopeningSession} onPress={() => reopenSession().catch(() => undefined)} style={styles.reopenButton}>Reopen game to edit scores</Button>}
+        {isFinished && isHost && <Button mode="contained" icon="restart" loading={isReopeningSession} onPress={() => reopenSession().catch(() => undefined)} style={styles.reopenButton}>Reabrir partida para editar puntos</Button>}
 
         {isHost && !selfPlayer && !isFinished && (
           <View style={styles.joinCard}>
-            <Text style={styles.joinTitle}>Adding you to the table</Text>
-            <Text style={styles.joinCopy}>Your score will appear as {selfName}.</Text>
-            {isJoiningSession ? <ActivityIndicator /> : error ? <Button mode="outlined" onPress={() => joinSessionAsMe(selfName).catch(() => undefined)}>Try again</Button> : <ActivityIndicator />}
+            <Text style={styles.joinTitle}>Sumándote a la mesa</Text>
+            <Text style={styles.joinCopy}>Tus puntos aparecerán como {selfName}.</Text>
+            {isJoiningSession ? <ActivityIndicator /> : error ? <Button mode="outlined" onPress={() => joinSessionAsMe(selfName).catch(() => undefined)}>Reintentar</Button> : <ActivityIndicator />}
           </View>
         )}
 
         {selfPlayer && (
           <View style={styles.myScoreCard}>
-            <Text style={styles.myScoreLabel}>YOUR SCORE · {selfPlayer.name}</Text>
-            <Text style={styles.myScoreTotal}>{session.totals.find((item) => item.playerId === selfPlayer.id)?.total ?? 0} points</Text>
+            <Text style={styles.myScoreLabel}>TUS PUNTOS · {selfPlayer.name}</Text>
+            <Text style={styles.myScoreTotal}>{session.totals.find((item) => item.playerId === selfPlayer.id)?.total ?? 0} puntos</Text>
             <QuickPoints playerId={selfPlayer.id} manualPoints={session.manualPoints?.[selfPlayer.id] ?? 0} disabled={controlsDisabled} onAdjust={adjustPoints} />
           </View>
         )}
@@ -137,14 +137,14 @@ export default function ScoringScreen() {
         <View style={styles.scoreboard}>
           <View style={styles.scoreboardHeading}>
             <MaterialCommunityIcons name="trophy-outline" size={22} color={colors.forest} />
-            <Text style={styles.scoreboardTitle}>Scoreboard</Text>
+            <Text style={styles.scoreboardTitle}>Tabla de posiciones</Text>
           </View>
           <View style={styles.totalGrid}>
             {session.players.map((player) => (
               <View key={player.id} style={styles.totalTile}>
-                <Text style={styles.totalName} numberOfLines={1}>{player.name}{selfPlayer?.id === player.id ? ' · YOU' : ''}</Text>
+                <Text style={styles.totalName} numberOfLines={1}>{player.name}{selfPlayer?.id === player.id ? ' · VOS' : ''}</Text>
                 <Text style={styles.totalValue}>{session.totals.find((item) => item.playerId === player.id)?.total ?? 0}</Text>
-                <Text style={styles.totalLabel}>POINTS</Text>
+                <Text style={styles.totalLabel}>PUNTOS</Text>
               </View>
             ))}
           </View>
@@ -152,24 +152,24 @@ export default function ScoringScreen() {
 
         {!isFinished && isHost && (confirmFinish ? (
           <View style={styles.finishConfirm}>
-            <Text style={styles.finishConfirmText}>Finish this game and show the winner? Scoring will pause until you reopen it.</Text>
+            <Text style={styles.finishConfirmText}>¿Terminar la partida y mostrar quién ganó? Podrás reabrirla para seguir contando.</Text>
             <View style={styles.finishActions}>
-              <Button mode="text" onPress={() => setConfirmFinish(false)}>Cancel</Button>
-              <Button mode="contained" loading={isFinishingSession} disabled={controlsDisabled} onPress={() => finishSession().then(() => setConfirmFinish(false)).catch(() => undefined)}>Finish game</Button>
+              <Button mode="text" onPress={() => setConfirmFinish(false)}>Cancelar</Button>
+              <Button mode="contained" loading={isFinishingSession} disabled={controlsDisabled} onPress={() => finishSession().then(() => setConfirmFinish(false)).catch(() => undefined)}>Terminar partida</Button>
             </View>
           </View>
-        ) : <Button mode="outlined" icon="flag-checkered" disabled={controlsDisabled} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Finish game</Button>)}
+        ) : <Button mode="outlined" icon="flag-checkered" disabled={controlsDisabled} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Terminar partida</Button>)}
 
         <View style={styles.sectionHeading}>
-          <Text style={styles.eyebrow}>THE DETAILS</Text>
-          <Text variant="headlineSmall" style={styles.heading}>Count the points</Text>
+          <Text style={styles.eyebrow}>EL DETALLE</Text>
+          <Text variant="headlineSmall" style={styles.heading}>Contá los puntos</Text>
         </View>
 
         {session.players.map((player) => (
           <View key={player.id} style={styles.playerCard}>
             <View style={styles.playerHeader}>
               <View style={styles.playerAvatar}><Text style={styles.avatarText}>{player.name.charAt(0).toUpperCase()}</Text></View>
-              <Text style={styles.playerName}>{player.name}{selfPlayer?.id === player.id ? ' · You' : ''}</Text>
+              <Text style={styles.playerName}>{player.name}{selfPlayer?.id === player.id ? ' · Vos' : ''}</Text>
               <Text style={styles.playerTotal}>{session.totals.find((item) => item.playerId === player.id)?.total ?? 0} pts</Text>
             </View>
             {selfPlayer?.id !== player.id && <QuickPoints playerId={player.id} manualPoints={session.manualPoints?.[player.id] ?? 0} disabled={controlsDisabled} onAdjust={adjustPoints} />}
@@ -178,7 +178,7 @@ export default function ScoringScreen() {
               return field.kind === 'checkbox' ? (
                 <ScoreCheckbox key={field.id} label={`${field.name} · ${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} pts`} checked={value > 0} disabled={controlsDisabled} onChange={(checked) => updateScore(player.id, field.id, checked ? 1 : 0).catch(() => undefined)} />
               ) : (
-                <ScoreStepper key={field.id} player={field.name} detail={field.kind === 'manual' ? 'Manual points' : `${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} per unit`} value={value} min={field.kind === 'manual' ? -999 : 0} max={999} disabled={controlsDisabled} onChange={(next) => updateScore(player.id, field.id, next).catch(() => undefined)} />
+                <ScoreStepper key={field.id} player={field.name} detail={field.kind === 'manual' ? 'Puntos manuales' : `${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} por unidad`} value={value} min={field.kind === 'manual' ? -999 : 0} max={999} disabled={controlsDisabled} onChange={(next) => updateScore(player.id, field.id, next).catch(() => undefined)} />
               );
             })}
           </View>

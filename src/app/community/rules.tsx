@@ -36,7 +36,7 @@ export default function CommunityRulesScreen() {
     setLoading(true);
     setError(null);
     try { setRules(await api.searchCommunityRules(term.trim(), bggId)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not search community sheets.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No pudimos buscar planillas de la comunidad.'); }
     finally { setLoading(false); }
   }, [bggId]);
 
@@ -44,7 +44,7 @@ export default function CommunityRulesScreen() {
     let active = true;
     api.searchCommunityRules(game ?? '', bggId)
       .then((found) => { if (active) setRules(found); })
-      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Could not search community sheets.'); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'No pudimos buscar planillas de la comunidad.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [game, bggId]);
@@ -52,41 +52,41 @@ export default function CommunityRulesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>COMMUNITY SCORING</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Victory point rules</Text>
-        <Text style={styles.subtitle}>Find reusable scoring sheets shared by other players. These describe how to count points, not the result of a finished game.</Text>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>COMUNIDAD</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>Reglas de puntos de victoria</Text>
+        <Text style={styles.subtitle}>Encontrá planillas compartidas por otros jugadores para contar los puntos de tus partidas.</Text>
         <View style={styles.searchCard}>
-          <TextInput label="Search by game or sheet name" placeholder="Wingspan, Azul…" value={query} onChangeText={setQuery} onSubmitEditing={() => search(query)} returnKeyType="search" mode="outlined" />
-          <Button mode="contained" icon="magnify" loading={loading} disabled={loading} onPress={() => search(query)}>Search sheets</Button>
+          <TextInput label="Buscar por juego o planilla" placeholder="Wingspan, Azul…" value={query} onChangeText={setQuery} onSubmitEditing={() => search(query)} returnKeyType="search" mode="outlined" />
+          <Button mode="contained" icon="magnify" loading={loading} disabled={loading} onPress={() => search(query)}>Buscar planillas</Button>
         </View>
 
         {loading ? <ActivityIndicator size="large" style={styles.loader} /> : error ? (
-          <View style={styles.card}><Text style={styles.error}>{error}</Text><Button mode="outlined" onPress={() => search(query)}>Try again</Button></View>
+          <View style={styles.card}><Text style={styles.error}>{error}</Text><Button mode="outlined" onPress={() => search(query)}>Reintentar</Button></View>
         ) : rules.length ? (
           <>
-            <Text style={styles.count}>{rules.length} shared {rules.length === 1 ? 'sheet' : 'sheets'}</Text>
+            <Text style={styles.count}>{rules.length} {rules.length === 1 ? 'planilla compartida' : 'planillas compartidas'}</Text>
             {rules.map((rule) => (
               <View key={rule.id} style={styles.card}>
                 <Text style={styles.gameName}>{rule.gameName}</Text>
                 <Text style={styles.sheetName}>{rule.name}</Text>
-                <Text style={styles.muted}>{rule.winCondition === 'lowest_total' ? 'Lowest total wins' : 'Highest total wins'}</Text>
+                <Text style={styles.muted}>{rule.winCondition === 'lowest_total' ? 'Gana el puntaje más bajo' : 'Gana el puntaje más alto'}</Text>
                 <View style={styles.fields}>
                   {rule.fields.map((field) => (
                     <View key={field.id} style={styles.fieldRow}>
                       <Text style={styles.fieldName}>{field.name}</Text>
-                      <Text style={styles.fieldPoints}>{field.kind === 'manual' ? 'Manual points' : `${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} per ${field.kind === 'checkbox' ? 'check' : 'unit'}`}</Text>
+                      <Text style={styles.fieldPoints}>{field.kind === 'manual' ? 'Puntos manuales' : `${field.pointsPerUnit > 0 ? '+' : ''}${field.pointsPerUnit} por ${field.kind === 'checkbox' ? 'marca' : 'unidad'}`}</Text>
                     </View>
                   ))}
                 </View>
-                <Button mode="contained" icon={planId ? 'check' : 'play'} onPress={() => handleUseRule(rule.id)}>{planId ? 'Add to scheduled game' : 'Use this sheet'}</Button>
+                <Button mode="contained" icon={planId ? 'check' : 'play'} onPress={() => handleUseRule(rule.id)}>{planId ? 'Agregar a la partida programada' : 'Usar esta planilla'}</Button>
               </View>
             ))}
           </>
         ) : (
           <View style={styles.card}>
-            <Text style={styles.sheetName}>No shared sheets found</Text>
-            <Text style={styles.muted}>Try another game name, or create a sheet and switch on community sharing.</Text>
-            <Button mode="outlined" icon="plus" onPress={() => router.push({ pathname: '/rules/new', params: { ...(game ? { game } : {}), ...(gameId ? { gameId } : {}), ...(planId ? { planId } : {}) } })}>Create a scoring sheet</Button>
+            <Text style={styles.sheetName}>No encontramos planillas compartidas</Text>
+            <Text style={styles.muted}>Probá con otro juego o creá una planilla y compartila con la comunidad.</Text>
+            <Button mode="outlined" icon="plus" onPress={() => router.push({ pathname: '/rules/new', params: { ...(game ? { game } : {}), ...(gameId ? { gameId } : {}), ...(planId ? { planId } : {}) } })}>Crear una planilla</Button>
           </View>
         )}
       </ScrollView>

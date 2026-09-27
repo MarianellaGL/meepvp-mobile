@@ -33,9 +33,9 @@ export default function PDFReaderScreen() {
   const activeDocument = document ?? (replacingDocument ? null : savedDocument) ?? null;
 
   async function saveCurrentPDF(pdf: PDFExtract) {
-    if (!name) throw new Error('Enter the game name to save this PDF.');
+    if (!name) throw new Error('Ingresá el nombre del juego para guardar este PDF.');
     await savePDF(name, resolvedGameId, pdf);
-    setSavedStatus('Saved to your library on this device.');
+    setSavedStatus('Guardado en la biblioteca de este dispositivo.');
   }
 
   async function saveAndBuild() {
@@ -47,7 +47,7 @@ export default function PDFReaderScreen() {
       setPDFDraft(activeDocument);
       router.push({ pathname: '/rules/new', params: { fromPdf: '1', game: name, ...(resolvedGameId ? { gameId: String(resolvedGameId) } : {}) } });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the PDF.');
+      setError(cause instanceof Error ? cause.message : 'No pudimos guardar el PDF.');
     } finally {
       setSaving(false);
     }
@@ -61,7 +61,7 @@ export default function PDFReaderScreen() {
       if (picked.canceled) return;
       const asset = picked.assets[0];
       if (!asset) {
-        setError('No file was selected.');
+        setError('No seleccionaste ningún archivo.');
         return;
       }
       setSelectedFile(asset.name);
@@ -69,7 +69,7 @@ export default function PDFReaderScreen() {
       setDocument(null);
       setSavedStatus(null);
       if (asset.size && asset.size > 20 * 1024 * 1024) {
-        setError('Choose a PDF smaller than 20 MB.');
+        setError('Elegí un PDF de menos de 20 MB.');
         return;
       }
       step = 'upload';
@@ -80,11 +80,11 @@ export default function PDFReaderScreen() {
       setShowFullText(false);
       if (name) {
         try { await saveCurrentPDF(result); }
-        catch { setError('PDF read, but it could not be saved on this device. Try Save PDF again.'); }
+        catch { setError('Leímos el PDF, pero no pudimos guardarlo en este dispositivo.'); }
       }
     } catch (cause) {
-      const reason = cause instanceof Error ? cause.message : 'Unknown error.';
-      setError(step === 'select' ? `Could not select the PDF: ${reason}` : `Could not import the PDF: ${reason}`);
+      const reason = cause instanceof Error ? cause.message : 'Error desconocido.';
+      setError(step === 'select' ? `No pudimos seleccionar el PDF: ${reason}` : `No pudimos importar el PDF: ${reason}`);
     } finally {
       setLoading(false);
     }
@@ -93,16 +93,16 @@ export default function PDFReaderScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>RULEBOOK READER</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Read a rulebook</Text>
-        <Text style={styles.subtitle}>Choose a PDF from your device. We&apos;ll show its text and passages that mention scoring.</Text>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE REGLAMENTOS</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>Leer un reglamento</Text>
+        <Text style={styles.subtitle}>Elegí un PDF. Te mostraremos el texto y los fragmentos que hablan de puntos.</Text>
 
         <View style={styles.card}>
-          <TextInput label="Game name" value={gameNameDraft} onChangeText={(value) => { setGameNameDraft(value); setSavedStatus(null); }} mode="outlined" />
-          <Text style={styles.cardTitle}>{loading ? selectedFile : activeDocument?.fileName ?? selectedFile ?? 'Choose a PDF'}</Text>
-          {activeDocument && !loading && <Text style={styles.muted}>{activeDocument.pages} pages</Text>}
-          <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>{activeDocument ? 'Choose another PDF' : 'Choose PDF'}</Button>
-          <Text style={styles.muted}>PDFs with selectable text work best. Scanned pages need OCR, which isn&apos;t available yet.</Text>
+          <TextInput label="Nombre del juego" value={gameNameDraft} onChangeText={(value) => { setGameNameDraft(value); setSavedStatus(null); }} mode="outlined" />
+          <Text style={styles.cardTitle}>{loading ? selectedFile : activeDocument?.fileName ?? selectedFile ?? 'Elegí un PDF'}</Text>
+          {activeDocument && !loading && <Text style={styles.muted}>{activeDocument.pages} páginas</Text>}
+          <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>{activeDocument ? 'Elegir otro PDF' : 'Elegir PDF'}</Button>
+          <Text style={styles.muted}>Funcionan mejor los PDF con texto seleccionable. Las páginas escaneadas todavía necesitan OCR.</Text>
         </View>
 
         {loading && <ActivityIndicator size="large" style={styles.loader} />}
@@ -110,16 +110,16 @@ export default function PDFReaderScreen() {
         {savedStatus && <Text style={styles.saved}>{savedStatus}</Text>}
         {activeDocument && !loading && (
           <>
-            <Text style={styles.heading}>Scoring passages</Text>
+            <Text style={styles.heading}>Fragmentos sobre puntuación</Text>
             {activeDocument.scoringExcerpts.length ? activeDocument.scoringExcerpts.map((excerpt, index) => (
               <View key={`${index}-${excerpt.slice(0, 12)}`} style={styles.excerpt}><Text style={styles.excerptText}>{excerpt}</Text></View>
-            )) : <View style={styles.card}><Text style={styles.muted}>No scoring passages found in the extracted text. You can still read the text below.</Text></View>}
-            <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Hide extracted text' : 'Read extracted text'}</Button>
-            {showFullText && <View style={styles.card}><Text selectable style={styles.bodyText}>{activeDocument.text || 'This PDF has no selectable text.'}</Text></View>}
-            <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'Could not save the PDF.')).finally(() => setSaving(false)); }}>Save PDF to library</Button>
-            <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>Build scoring sheet</Button>
-            {!name && <Text style={styles.muted}>Enter the game name to save this PDF or build a scoring sheet.</Text>}
-            <Text style={styles.muted}>Review the rulebook before adding fields and point values. The PDF is read for this preview; no scoring sheet is created automatically.</Text>
+            )) : <View style={styles.card}><Text style={styles.muted}>No encontramos fragmentos sobre puntos. Podés leer el texto completo abajo.</Text></View>}
+            <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Ocultar texto' : 'Leer texto extraído'}</Button>
+            {showFullText && <View style={styles.card}><Text selectable style={styles.bodyText}>{activeDocument.text || 'Este PDF no tiene texto seleccionable.'}</Text></View>}
+            <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar el PDF.')).finally(() => setSaving(false)); }}>Guardar PDF en biblioteca</Button>
+            <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>Crear planilla</Button>
+            {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el PDF o crear una planilla.</Text>}
+            <Text style={styles.muted}>Revisá el reglamento antes de agregar campos y puntos. Ninguna planilla se crea automáticamente.</Text>
           </>
         )}
       </ScrollView>

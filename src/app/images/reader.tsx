@@ -14,7 +14,7 @@ export default function ImageReaderScreen() {
   const { game, gameId } = useLocalSearchParams<{ game?: string; gameId?: string }>();
   const [gameName, setGameName] = useState(game ?? '');
   const [imageURI, setImageURI] = useState<string | null>(null);
-  const [imageName, setImageName] = useState('Scoring table image');
+  const [imageName, setImageName] = useState('Imagen de tabla de puntos');
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export default function ImageReaderScreen() {
     try {
       if (source === 'camera') {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) throw new Error('Camera permission is required to take a photo.');
+        if (!permission.granted) throw new Error('Necesitamos permiso para usar la cámara.');
       }
       const picked = source === 'camera'
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 })
@@ -34,13 +34,13 @@ export default function ImageReaderScreen() {
       const image = picked.assets[0];
       setText('');
       setImageURI(image.uri);
-      setImageName(image.fileName ?? 'Scoring table image');
+      setImageName(image.fileName ?? 'Imagen de tabla de puntos');
       setLoading(true);
       const recognized = await readImageText(image.uri);
       setText(recognized);
-      if (!recognized) setError('No text was found. Try a sharper photo with the whole points table visible.');
+      if (!recognized) setError('No encontramos texto. Probá con una foto más nítida de toda la tabla.');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not read this image.');
+      setError(cause instanceof Error ? cause.message : 'No pudimos leer la imagen.');
     } finally {
       setLoading(false);
     }
@@ -57,20 +57,20 @@ export default function ImageReaderScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>POINTS TABLE READER</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Read points from an image</Text>
-        <Text style={styles.copy}>Choose a screenshot or photograph a victory-point table. Review the recognized text before creating a scoring sheet.</Text>
-        <TextInput label="Game name" value={gameName} onChangeText={setGameName} mode="outlined" />
-        <Button mode="contained" icon="image" disabled={loading} onPress={() => processImage('library')}>Choose image</Button>
-        <Button mode="outlined" icon="camera" disabled={loading} onPress={() => processImage('camera')}>Take photo</Button>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE PUNTOS</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>Leer puntos de una imagen</Text>
+        <Text style={styles.copy}>Elegí una captura o fotografiá una tabla de puntos de victoria. Revisá el texto antes de crear la planilla.</Text>
+        <TextInput label="Nombre del juego" value={gameName} onChangeText={setGameName} mode="outlined" />
+        <Button mode="contained" icon="image" disabled={loading} onPress={() => processImage('library')}>Elegir imagen</Button>
+        <Button mode="outlined" icon="camera" disabled={loading} onPress={() => processImage('camera')}>Tomar foto</Button>
         {imageURI && <Image source={{ uri: imageURI }} style={styles.preview} resizeMode="contain" />}
-        {loading && <Text style={styles.copy}>Reading text on this device…</Text>}
+        {loading && <Text style={styles.copy}>Leyendo texto en este dispositivo…</Text>}
         {error && <Text style={styles.error}>{error}</Text>}
         {!!text && <>
-          <Text style={styles.sectionTitle}>Recognized text</Text>
-          <TextInput label="Correct any OCR mistakes" value={text} onChangeText={setText} mode="outlined" multiline numberOfLines={10} />
-          <Text style={styles.copy}>The image is not uploaded. You choose the fields and point values in the next step.</Text>
-          <Button mode="contained" icon="table-edit" disabled={!gameName.trim() || !text.trim()} onPress={buildSheet}>Build scoring sheet</Button>
+          <Text style={styles.sectionTitle}>Texto reconocido</Text>
+          <TextInput label="Corregí los errores de lectura" value={text} onChangeText={setText} mode="outlined" multiline numberOfLines={10} />
+          <Text style={styles.copy}>La imagen no se sube. En el próximo paso elegís los campos y puntos.</Text>
+          <Button mode="contained" icon="table-edit" disabled={!gameName.trim() || !text.trim()} onPress={buildSheet}>Crear planilla</Button>
         </>}
       </ScrollView>
     </SafeAreaView>

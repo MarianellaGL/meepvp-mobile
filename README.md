@@ -1,52 +1,55 @@
-# MeepVP mobile
+# MeepVP Mobile
 
-Expo SDK 57 app for board-game scoring sheets, game sessions, winner tracking, and player statistics. It uses the published `@decodadev02/scoreui` design system and the separate [MeepVP API](https://github.com/MarianellaGL/meepvp-api).
+Aplicación Expo SDK 57 para llevar puntuaciones de juegos de mesa, compartir planillas y consultar ganadores y estadísticas. Usa `@decodadev02/scoreui` y la [API de MeepVP](https://github.com/MarianellaGL/meepvp-api).
 
-## Run locally
+## Ejecutar en local
 
-1. Start PostgreSQL and the API using the API repository's README.
-2. Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to the API origin. On a physical phone, use your computer's LAN IP; `localhost` refers to the phone.
-3. Install dependencies and start Expo:
+1. Iniciá PostgreSQL y la API siguiendo el README del repositorio de la API.
+2. Copiá `.env.example` a `.env` y configurá `EXPO_PUBLIC_API_URL`. En un celular físico usá la IP local de tu computadora: `localhost` apunta al celular.
+3. Instalá las dependencias e iniciá Expo:
 
 ```sh
 pnpm install --ignore-scripts
 npx expo start
 ```
 
-The `--ignore-scripts` flag avoids the unrelated `unrs-resolver` build-script policy failure. You can also start Android, iOS, or web with `npx expo start --android`, `--ios`, or `--web`.
+`--ignore-scripts` evita el bloqueo actual del script de compilación de `unrs-resolver`. También podés iniciar con `npx expo start --android`, `--ios` o `--web`.
 
-Image OCR uses `expo-text-extractor` and requires a native development or production build on iOS or Android. It does not run in Expo Go or on web. Build locally with `npx expo run:android` or `npx expo run:ios`, or use an EAS development build.
+El lector de imágenes usa `expo-text-extractor` y necesita una compilación nativa de desarrollo o producción en iOS o Android; no funciona en Expo Go ni en web. El escáner QR usa `expo-camera` y también requiere una compilación de desarrollo después de agregar la dependencia nativa. Podés crearla con `npx expo run:android`, `npx expo run:ios` o EAS. En web, ingresá el código de mesa manualmente.
 
-## Features and API routes
+## Flujo de juego
 
-| Feature | API route |
+Al abrir la app se puede registrar una cuenta, iniciar sesión, continuar sin cuenta o unirse a una partida. Para unirse se escanea el QR de una partida activa o se ingresa el código de seis caracteres junto con el nombre del jugador. El QR contiene un enlace `meepvp://join?code=...`; el enlace directo requiere que la app esté instalada. La API resuelve ese código a la partida activa. Una partida terminada no genera QR y su código ya no permite unirse; aparece en Historial. El anfitrión puede finalizarla y la API devuelve el ganador o todos los jugadores empatados según la regla de puntuación.
+
+La biblioteca consulta las planillas guardadas en la base de datos cada vez que se abre y permite actualizar la lista manualmente. El lector de imágenes reconoce texto localmente en una foto o captura, permite corregirlo y pide revisar los puntos antes de guardar. El lector de PDF extrae texto seleccionable; el OCR de PDF escaneados todavía no está disponible. Los recordatorios de partidas programadas son notificaciones locales.
+
+## Rutas de la API
+
+| Función | Ruta |
 | --- | --- |
-| Sign up, log in, log out | `POST /v1/auth/signup`, `/login`, `/logout` |
-| Profile stats and account history | `GET /v1/me`, `/v1/me/stats`, `/v1/me/sessions` |
-| Attach the current anonymous game after signup | `POST /v1/me/claim-session` |
-| Check API connection | `GET /health` |
-| Import BoardGameGeek collection and read rules discussions | `GET /v1/bgg/collections/{username}`, `GET /v1/bgg/games/{gameID}/rules` |
-| List all scoring sheets from the database and create one | `GET /v1/scoring-rules`, `POST /v1/scoring-rules` |
-| Search shared sheets | `GET /v1/community/scoring-rules` |
-| Preview selectable text from PDFs | `POST /v1/pdf/extract` |
-| Anonymous table and game session | `POST /v1/tables`, `POST /v1/tables/{code}/sessions`, `GET /v1/sessions/{id}` |
-| Player and scoring controls | `POST /v1/sessions/{id}/players`, `PATCH /v1/sessions/{id}/scores`, `POST /v1/sessions/{id}/points` |
-| Finish or reopen a game | `POST /v1/sessions/{id}/finish`, `POST /v1/sessions/{id}/reopen` |
-| Schedule a game | `GET/POST /v1/tables/{code}/scheduled-games`, `PATCH /v1/scheduled-games/{id}/rule`, `/session` |
+| Registro, ingreso y salida | `POST /v1/auth/signup`, `/login`, `/logout` |
+| Perfil, estadísticas e historial de la cuenta | `GET /v1/me`, `/v1/me/stats`, `/v1/me/sessions` |
+| Asociar una partida anónima reciente | `POST /v1/me/claim-session` |
+| Estado de la API | `GET /health` |
+| Colección y conversaciones de BoardGameGeek | `GET /v1/bgg/collections/{username}`, `/v1/bgg/games/{gameID}/rules` |
+| Listar y crear planillas | `GET/POST /v1/scoring-rules` |
+| Buscar planillas compartidas | `GET /v1/community/scoring-rules` |
+| Extraer texto de PDF | `POST /v1/pdf/extract` |
+| Crear mesa y partida | `POST /v1/tables`, `/v1/tables/{code}/sessions` |
+| Resolver el código de una partida activa | `GET /v1/tables/{code}/current-session` |
+| Consultar partida, agregar jugadores y puntos | `GET /v1/sessions/{id}`, `POST /v1/sessions/{id}/players`, `PATCH /v1/sessions/{id}/scores`, `POST /v1/sessions/{id}/points` |
+| Finalizar o reabrir partida | `POST /v1/sessions/{id}/finish`, `/reopen` |
+| Programar partidas | `GET/POST /v1/tables/{code}/scheduled-games`, `PATCH /v1/scheduled-games/{id}/rule`, `/session` |
 
-Library refreshes the database's scoring-sheet list whenever it opens and offers a manual refresh button. The host can finish a game; the API returns the winner or all tied winners based on the sheet's highest/lowest total setting. Signed-in players can see their own completed games, wins, ties, and points in Profile and History.
+## Cuentas y datos locales
 
-## Accounts, local data, and sharing
+Las cuentas usan nombre de usuario y contraseña. La inscripción pide confirmar la contraseña. El token de sesión se guarda en Expo SecureStore en iOS y Android, y en `localStorage` en web. Las estadísticas e historial de una cuenta solo se consultan con su token. La app intenta asociar la última partida anónima al ingresar, mediante el token privado del anfitrión y el ID del jugador; las partidas anteriores sin esa prueba no se asocian automáticamente.
 
-Accounts use a username and password. Profile and the community-sharing prompt open a dedicated `/auth` screen with login and signup. Signup confirms the password before submitting. A bearer session token is saved in Expo SecureStore on iOS and Android; the web build uses localStorage. A logged-in host's new game sessions are linked to that account. After signup or login, the app tries to attach the most recent locally saved session using its table host token and player ID. Older games without that proof cannot be assigned automatically. Anonymous play remains available.
+El token del anfitrión y la última partida quedan en el dispositivo. La colección, las planillas y el texto extraído de PDF tienen copias locales para consultar sin conexión. La API guarda planillas y partidas en PostgreSQL y no conserva el PDF original.
 
-The table host token and most recent game remain on the device. Imported collections, scoring sheets, and extracted PDF text have local snapshots for offline viewing. The API persists scoring sheets and sessions in PostgreSQL. PDF extraction does not retain the original PDF.
+Compartir una planilla con la comunidad requiere iniciar sesión y marca `isPublic: true`. Las planillas sin esa marca no aparecen en la búsqueda de la comunidad, pero `GET /v1/scoring-rules` actualmente las devuelve a cualquiera con acceso a la API: son no listadas, no confidenciales. Todavía no hay moderación de publicaciones ni recuperación de contraseñas.
 
-Sharing a sheet with the community requires login. The share switch sets `isPublic: true`. Sheets without that flag are omitted from community search, but `GET /v1/scoring-rules` currently returns every sheet to anyone who can reach the API. Treat them as unlisted, not confidential. Publication moderation and password recovery are not implemented yet.
-
-The image reader recognizes text locally from a photo or screenshot. It shows editable OCR text and requires manual review of fields and point values before saving a scoring sheet. PDF OCR, scanned PDF pages, and web image OCR are not available yet. Game reminders are local notifications; remote push delivery is not configured.
-
-## Checks
+## Verificaciones
 
 ```sh
 npx expo lint

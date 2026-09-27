@@ -18,7 +18,7 @@ export default function ProfileScreen() {
   const [checkingAPI, setCheckingAPI] = useState(false);
   const { myPlayerName, username, setMyPlayerName } = useTableScoreStore();
   const { user, stats, isBusy, isRestoring, error: authError, logOut, refresh } = useAuthStore();
-  const name = nameDraft ?? (myPlayerName || username || 'You');
+  const name = nameDraft ?? (myPlayerName || username || 'Vos');
 
   useFocusEffect(useCallback(() => {
     if (user) refresh().catch(() => undefined);
@@ -28,9 +28,9 @@ export default function ProfileScreen() {
     setCheckingAPI(true);
     try {
       const health = await api.getHealth();
-      setAPIStatus(health.status === 'ok' ? 'API connected.' : 'The API returned an unexpected status.');
+      setAPIStatus(health.status === 'ok' ? 'API conectada.' : 'La API devolvió un estado inesperado.');
     } catch (cause) {
-      setAPIStatus(cause instanceof Error ? `Could not reach the API: ${cause.message}` : 'Could not reach the API.');
+      setAPIStatus(cause instanceof Error ? `No pudimos conectar con la API: ${cause.message}` : 'No pudimos conectar con la API.');
     } finally {
       setCheckingAPI(false);
     }
@@ -39,36 +39,36 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>YOUR SPACE</Text>
-        <Text style={styles.title}>Player profile</Text>
-        <Text style={styles.subtitle}>Keep the focus on the game.</Text>
+        <Text style={styles.eyebrow}>TU ESPACIO</Text>
+        <Text style={styles.title}>Perfil de jugador</Text>
+        <Text style={styles.subtitle}>Concentrate en la partida.</Text>
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}><MaterialCommunityIcons name="account-outline" size={34} color={colors.paper} /></View>
-          <View style={styles.anonymousPill}><MaterialCommunityIcons name={user ? 'account-check-outline' : 'incognito'} size={15} color={colors.forest} /><Text style={styles.anonymousText}>{user ? `@${user.username}` : 'ANONYMOUS PLAYER'}</Text></View>
-          <Text style={styles.profileTitle}>{myPlayerName || 'You’re ready to play'}</Text>
-          <Text style={styles.profileCopy}>{user ? 'Your games and stats are linked to your account.' : 'Create tables and track scores without making an account.'}</Text>
+          <View style={styles.anonymousPill}><MaterialCommunityIcons name={user ? 'account-check-outline' : 'incognito'} size={15} color={colors.forest} /><Text style={styles.anonymousText}>{user ? `@${user.username}` : 'JUGADOR SIN CUENTA'}</Text></View>
+          <Text style={styles.profileTitle}>{myPlayerName || 'Listo para jugar'}</Text>
+          <Text style={styles.profileCopy}>{user ? 'Tus partidas y estadísticas están vinculadas a tu cuenta.' : 'Creá mesas y llevá los puntos sin crear una cuenta.'}</Text>
         </View>
 
         <View style={styles.nameCard}>
-          <Text style={styles.featureTitle}>MeepVP account</Text>
-          {isRestoring ? <Text style={styles.featureCopy}>Restoring your account…</Text> : user ? (
+          <Text style={styles.featureTitle}>Cuenta MeepVP</Text>
+          {isRestoring ? <Text style={styles.featureCopy}>Recuperando tu cuenta…</Text> : user ? (
             <>
-              <Text style={styles.featureCopy}>Signed in as @{user.username}. Your game stats are visible only to this account.</Text>
+              <Text style={styles.featureCopy}>Sesión iniciada como @{user.username}. Tus estadísticas solo aparecen en esta cuenta.</Text>
               <View style={styles.statsRow}>
-                <Text style={styles.stat}>{stats?.finishedGames ?? 0} games</Text>
-                <Text style={styles.stat}>{stats?.wins ?? 0} wins</Text>
-                <Text style={styles.stat}>{stats?.ties ?? 0} ties</Text>
-                <Text style={styles.stat}>{stats?.totalPoints ?? 0} points</Text>
+                <Text style={styles.stat}>{stats?.finishedGames ?? 0} partidas</Text>
+                <Text style={styles.stat}>{stats?.wins ?? 0} victorias</Text>
+                <Text style={styles.stat}>{stats?.ties ?? 0} empates</Text>
+                <Text style={styles.stat}>{stats?.totalPoints ?? 0} puntos</Text>
               </View>
-              <Button mode="outlined" loading={isBusy} disabled={isBusy} onPress={() => logOut().catch(() => undefined)}>Log out</Button>
+              <Button mode="outlined" loading={isBusy} disabled={isBusy} onPress={() => logOut().catch(() => undefined)}>Cerrar sesión</Button>
             </>
           ) : (
             <>
-              <Text style={styles.featureCopy}>Create an account to keep your stats across devices and share sheets with the community.</Text>
+              <Text style={styles.featureCopy}>Creá una cuenta para conservar tus estadísticas y compartir planillas con la comunidad.</Text>
               <View style={styles.authActions}>
-                <Button mode="contained" style={styles.authAction} onPress={() => router.push('/auth')}>Log in</Button>
-                <Button mode="outlined" style={styles.authAction} onPress={() => router.push({ pathname: '/auth', params: { mode: 'signup' } })}>Sign up</Button>
+                <Button mode="contained" style={styles.authAction} onPress={() => router.push('/auth')}>Iniciar sesión</Button>
+                <Button mode="outlined" style={styles.authAction} onPress={() => router.push({ pathname: '/auth', params: { mode: 'signup' } })}>Registrarse</Button>
               </View>
             </>
           )}
@@ -76,27 +76,27 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.nameCard}>
-          <Text style={styles.featureTitle}>Your player name</Text>
-          <Text style={styles.featureCopy}>This name is added to new games so your score appears on the table.</Text>
-          <TextInput label="Player name" value={name} onChangeText={setNameDraft} mode="outlined" />
-          <Button mode="contained" disabled={!name.trim()} onPress={() => setMyPlayerName(name)}>Save name</Button>
+          <Text style={styles.featureTitle}>Tu nombre de jugador</Text>
+          <Text style={styles.featureCopy}>Este nombre aparece en tus próximas partidas y en la tabla de puntos.</Text>
+          <TextInput label="Nombre de jugador" value={name} onChangeText={setNameDraft} mode="outlined" />
+          <Button mode="contained" disabled={!name.trim()} onPress={() => setMyPlayerName(name)}>Guardar nombre</Button>
         </View>
 
         <View style={styles.nameCard}>
-          <Text style={styles.featureTitle}>API connection</Text>
+          <Text style={styles.featureTitle}>Conexión con la API</Text>
           <Text style={styles.featureCopy}>{baseURL}</Text>
           {apiStatus && <Text style={styles.featureCopy}>{apiStatus}</Text>}
-          <Button mode="outlined" loading={checkingAPI} disabled={checkingAPI} onPress={checkAPI}>Check connection</Button>
+          <Button mode="outlined" loading={checkingAPI} disabled={checkingAPI} onPress={checkAPI}>Comprobar conexión</Button>
         </View>
 
-        <Text style={styles.sectionLabel}>EXPLORE</Text>
+        <Text style={styles.sectionLabel}>EXPLORAR</Text>
         <View style={styles.featureCard}>
           <View style={styles.featureIcon}><MaterialCommunityIcons name="history" size={23} color={colors.forest} /></View>
-          <View style={styles.featureText}><Text style={styles.featureTitle}>Game history</Text><Text style={styles.featureCopy}>View your last finished game.</Text><Button mode="text" onPress={() => router.push('/history')}>Open history</Button></View>
+          <View style={styles.featureText}><Text style={styles.featureTitle}>Historial de partidas</Text><Text style={styles.featureCopy}>Volvé a ver tus partidas terminadas.</Text><Button mode="text" onPress={() => router.push('/history')}>Abrir historial</Button></View>
         </View>
         <View style={styles.featureCard}>
           <View style={[styles.featureIcon, { backgroundColor: colors.orangePale }]}><MaterialCommunityIcons name="account-group-outline" size={23} color={colors.orangeInk} /></View>
-          <View style={styles.featureText}><Text style={styles.featureTitle}>Community sheets</Text><Text style={styles.featureCopy}>Find scoring rules shared by other players.</Text><Button mode="text" onPress={() => router.push('/community/rules')}>Browse sheets</Button></View>
+          <View style={styles.featureText}><Text style={styles.featureTitle}>Planillas de la comunidad</Text><Text style={styles.featureCopy}>Encontrá reglas compartidas por otros jugadores.</Text><Button mode="text" onPress={() => router.push('/community/rules')}>Ver planillas</Button></View>
         </View>
       </ScrollView>
     </SafeAreaView>

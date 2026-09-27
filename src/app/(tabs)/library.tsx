@@ -23,7 +23,7 @@ export default function LibraryScreen() {
     setLoadingRules(true);
     setRulesError(null);
     try { await loadRules(); }
-    catch (cause) { setRulesError(cause instanceof Error ? cause.message : 'Could not load scoring sheets.'); }
+    catch (cause) { setRulesError(cause instanceof Error ? cause.message : 'No pudimos cargar las planillas.'); }
     finally { setLoadingRules(false); }
   }, [loadRules]);
 
@@ -37,55 +37,55 @@ export default function LibraryScreen() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
-            <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
-            <Text style={styles.title}>Game library</Text>
-            <Text style={styles.subtitle}>All your favorites, ready for the next game night.</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Create scoring sheet" onPress={() => router.push('/rules/new')} style={styles.banner}>
+            <Text style={styles.eyebrow}>TU COLECCIÓN</Text>
+            <Text style={styles.title}>Biblioteca de juegos</Text>
+            <Text style={styles.subtitle}>Tus favoritos, listos para la próxima partida.</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Crear planilla de puntos" onPress={() => router.push('/rules/new')} style={styles.banner}>
               <View style={styles.bannerIcon}><MaterialCommunityIcons name="table-edit" size={25} color={colors.forest} /></View>
               <View style={styles.bannerText}>
-                <Text style={styles.bannerTitle}>Make a scoring sheet</Text>
-                <Text style={styles.bannerCopy}>Turn any game into an easy score table.</Text>
+                <Text style={styles.bannerTitle}>Crear una planilla</Text>
+                <Text style={styles.bannerCopy}>Llevá los puntos de cualquier juego.</Text>
               </View>
               <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Find community victory point rules" onPress={() => router.push('/community/rules')} style={[styles.banner, styles.communityBanner]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Buscar planillas de la comunidad" onPress={() => router.push('/community/rules')} style={[styles.banner, styles.communityBanner]}>
               <View style={styles.bannerIcon}><MaterialCommunityIcons name="account-group-outline" size={25} color={colors.forest} /></View>
               <View style={styles.bannerText}>
-                <Text style={styles.bannerTitle}>Community scoring rules</Text>
-                <Text style={styles.bannerCopy}>Find sheets other players shared.</Text>
+                <Text style={styles.bannerTitle}>Planillas de la comunidad</Text>
+                <Text style={styles.bannerCopy}>Encontrá planillas compartidas por otros jugadores.</Text>
               </View>
               <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Upload PDF rulebook" onPress={() => router.push('/pdf/reader')} style={[styles.banner, styles.pdfBanner]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Subir reglamento en PDF" onPress={() => router.push('/pdf/reader')} style={[styles.banner, styles.pdfBanner]}>
               <View style={[styles.bannerIcon, styles.pdfBannerIcon]}><MaterialCommunityIcons name="file-pdf-box" size={25} color={colors.orangeInk} /></View>
               <View style={styles.bannerText}>
-                <Text style={styles.bannerTitle}>Upload PDF rulebook</Text>
-                <Text style={styles.bannerCopy}>Choose a file and find its scoring rules.</Text>
+                <Text style={styles.bannerTitle}>Subir reglamento en PDF</Text>
+                <Text style={styles.bannerCopy}>Elegí un archivo y encontrá las reglas de puntos.</Text>
               </View>
               <MaterialCommunityIcons name="arrow-right" size={22} color={colors.orangeInk} />
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Read points table image" onPress={() => router.push('/images/reader')} style={[styles.banner, styles.communityBanner]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Leer imagen de tabla de puntos" onPress={() => router.push('/images/reader')} style={[styles.banner, styles.communityBanner]}>
               <View style={styles.bannerIcon}><MaterialCommunityIcons name="image-search-outline" size={25} color={colors.forest} /></View>
-              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Read a points table image</Text><Text style={styles.bannerCopy}>Turn a photo or screenshot into a scoring-sheet draft.</Text></View>
+              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Leer tabla de puntos</Text><Text style={styles.bannerCopy}>Usá una foto o captura para crear un borrador.</Text></View>
               <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
             </Pressable>
             <View style={styles.listHeading}>
-              <Text variant="titleMedium" style={styles.listTitle}>Scoring sheets in the database</Text>
+              <Text variant="titleMedium" style={styles.listTitle}>Planillas guardadas</Text>
               <Text style={styles.count}>{rules.length} total</Text>
             </View>
-            <Button mode="outlined" icon="refresh" loading={loadingRules} disabled={loadingRules} onPress={() => refreshRules().catch(() => undefined)}>Refresh sheets</Button>
+            <Button mode="outlined" icon="refresh" loading={loadingRules} disabled={loadingRules} onPress={() => refreshRules().catch(() => undefined)}>Actualizar planillas</Button>
             {rulesError && <Text style={styles.error}>{rulesError}</Text>}
             {rules.length ? rules.map((rule) => (
               <View key={rule.id} style={styles.sheetCard}>
                 <Text style={styles.sheetGame}>{rule.gameName}</Text>
                 <Text style={styles.sheetName}>{rule.name}</Text>
-                <Text style={styles.gameMeta}>{rule.fields.length} scoring fields · {rule.isPublic ? 'Shared with community' : 'Not listed in community search'}</Text>
-                <Button mode="text" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: rule.id } })}>Start game</Button>
+                <Text style={styles.gameMeta}>{rule.fields.length} campos · {rule.isPublic ? 'Compartida con la comunidad' : 'No aparece en la comunidad'}</Text>
+                <Button mode="text" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: rule.id } })}>Empezar partida</Button>
               </View>
-            )) : !loadingRules && <Text style={styles.emptyCopy}>No scoring sheets have been saved yet.</Text>}
+            )) : !loadingRules && <Text style={styles.emptyCopy}>Todavía no hay planillas guardadas.</Text>}
             {savedPDFs.length > 0 && (
               <View style={styles.savedPDFSection}>
-                <Text variant="titleMedium" style={styles.listTitle}>Saved rulebooks</Text>
+                <Text variant="titleMedium" style={styles.listTitle}>Reglamentos guardados</Text>
                 {savedPDFs.map((pdf) => (
                   <Button key={pdf.gameId ?? pdf.gameName} mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { game: pdf.gameName, ...(pdf.gameId ? { gameId: String(pdf.gameId) } : {}) } })}>{pdf.gameName} · {pdf.document.fileName}</Button>
                 ))}
@@ -93,7 +93,7 @@ export default function LibraryScreen() {
             )}
             {collection.length > 0 && (
               <View style={styles.listHeading}>
-                <Text variant="titleMedium" style={styles.listTitle}>Imported games</Text>
+                <Text variant="titleMedium" style={styles.listTitle}>Juegos importados</Text>
                 <Text style={styles.count}>{collection.length} total</Text>
               </View>
             )}
@@ -102,21 +102,21 @@ export default function LibraryScreen() {
         ListEmptyComponent={!hasRestored ? <ScoreSkeleton variant="list" /> :
           <View style={styles.empty}>
             <View style={styles.emptyIcon}><MaterialCommunityIcons name="bookshelf" size={34} color={colors.forest} /></View>
-            <Text variant="headlineSmall" style={styles.emptyTitle}>Your shelf is waiting</Text>
-            <Text style={styles.emptyCopy}>Import your BoardGameGeek collection to see your games here.</Text>
-            <Button mode="contained" icon="download" onPress={() => router.navigate('/')}>Go to import</Button>
+            <Text variant="headlineSmall" style={styles.emptyTitle}>Tu biblioteca te espera</Text>
+            <Text style={styles.emptyCopy}>Importá tu colección de BoardGameGeek para ver tus juegos acá.</Text>
+            <Button mode="contained" icon="download" onPress={() => router.navigate('/')}>Ir a importar</Button>
           </View>
         }
         renderItem={({ item, index }) => (
-          <Pressable accessibilityRole="button" accessibilityLabel={`View rules discussions for ${item.name}`} onPress={() => router.push({ pathname: '/games/[gameId]', params: { gameId: String(item.bggId), name: item.name } })} style={styles.gameCard}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Ver reglas de ${item.name}`} onPress={() => router.push({ pathname: '/games/[gameId]', params: { gameId: String(item.bggId), name: item.name } })} style={styles.gameCard}>
             <View style={[styles.gameArt, { backgroundColor: index % 2 === 0 ? colors.mint : colors.orangePale }]}>
               <MaterialCommunityIcons name="dice-multiple-outline" size={28} color={index % 2 === 0 ? colors.forest : colors.orangeInk} />
             </View>
             <View style={styles.gameBody}>
               <Text variant="titleMedium" style={styles.gameName} numberOfLines={2}>{item.name}</Text>
-              <Text style={styles.gameMeta}>{item.yearPublished || 'Year unknown'} · {item.minPlayers ?? '?'}–{item.maxPlayers ?? '?'} players</Text>
+              <Text style={styles.gameMeta}>{item.yearPublished || 'Año desconocido'} · {item.minPlayers ?? '?'}–{item.maxPlayers ?? '?'} jugadores</Text>
               {!!item.playingTime && <Text style={styles.gameMeta}>{item.playingTime} min</Text>}
-              <ScoreBadge tone={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'success' : 'warning'} label={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'Scoring sheet ready' : 'No scoring sheet yet'} />
+              <ScoreBadge tone={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'success' : 'warning'} label={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'Planilla lista' : 'Sin planilla'} />
             </View>
             <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
           </Pressable>

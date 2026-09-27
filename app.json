@@ -21,7 +21,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-notifications", ["expo-image-picker", { "photosPermission": "Allow MeepVP to read a scoring table image you choose.", "cameraPermission": "Allow MeepVP to photograph a scoring table.", "microphonePermission": false }]],
+    "plugins": ["expo-router", "expo-notifications", ["expo-image-picker", { "photosPermission": "Permitir que MeepVP lea una imagen de puntuación elegida por vos.", "cameraPermission": "Permitir que MeepVP fotografíe una tabla de puntuación.", "microphonePermission": false }], ["expo-camera", { "cameraPermission": "Permitir que MeepVP escanee el QR de una mesa.", "recordAudioAndroid": false, "barcodeScannerEnabled": true }]],
     "scheme": "meepvp"
   }
 }

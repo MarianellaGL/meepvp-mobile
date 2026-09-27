@@ -7,6 +7,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.25",
+    "expo-camera": "~57.0.5",
     "expo-document-picker": "~57.0.2",
     "expo-font": "~57.0.4",
     "expo-image-picker": "~57.0.20",
@@ -19,8 +20,10 @@
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-paper": "^5.15.3",
+    "react-native-qrcode-svg": "^6.3.26",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.2",
+    "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.3",
     "zustand": "^5.0.15"
   },

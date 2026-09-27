@@ -8,19 +8,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
+import { TableQRCode } from '@/components/TableQRCode';
 
 export default function TablesScreen() {
   const { table, session, selfPlayerId, myPlayerName, username, isRestoring, hasRestored, error, restore } = useTableScoreStore();
-  const selfPlayer = session?.players.find((player) => player.id === selfPlayerId) ?? session?.players.find((player) => player.name.toLocaleLowerCase() === (myPlayerName || username || 'You').toLocaleLowerCase());
-  const myTotal = session?.totals.find((total) => total.playerId === selfPlayer?.id)?.total ?? 0;
+  const activeSession = session?.status === 'active' && session.tableCode === table?.code ? session : null;
+  const selfPlayer = activeSession?.players.find((player) => player.id === selfPlayerId) ?? activeSession?.players.find((player) => player.name.toLocaleLowerCase() === (myPlayerName || username || 'Vos').toLocaleLowerCase());
+  const myTotal = activeSession?.totals.find((total) => total.playerId === selfPlayer?.id)?.total ?? 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>PLAY TOGETHER</Text>
-        <Text style={styles.title}>Your tables</Text>
-        <Text style={styles.subtitle}>One place for every player and every point.</Text>
-        <Button mode="outlined" icon="calendar-plus" onPress={() => router.push('/schedule')}>Schedule a game</Button>
+        <Text style={styles.eyebrow}>JUGAR EN GRUPO</Text>
+        <Text style={styles.title}>Tus mesas</Text>
+        <Text style={styles.subtitle}>Un lugar para cada jugador y cada punto.</Text>
+        <Button mode="outlined" icon="calendar-plus" onPress={() => router.push('/schedule')}>Programar una partida</Button>
 
         {!hasRestored || isRestoring ? (
           <ScoreSkeleton variant="card" />
@@ -28,47 +30,48 @@ export default function TablesScreen() {
           <View style={styles.tableCard}>
             <View style={styles.cardHeader}>
               <View style={styles.icon}><MaterialCommunityIcons name="table-furniture" size={29} color={colors.canvas} /></View>
-              <ScoreBadge label="ACTIVE TABLE" tone="success" />
+              {activeSession && <ScoreBadge label="PARTIDA EN CURSO" tone="success" />}
             </View>
-            <Text style={styles.tableName}>{table.name || 'Game night'}</Text>
-            <Text style={styles.cardCopy}>Share this code with everyone around the table.</Text>
-            <View style={styles.codeBox}>
-              <Text style={styles.codeLabel}>TABLE CODE</Text>
+            <Text style={styles.tableName}>{activeSession ? table.name || 'Noche de juegos' : 'Mesa lista para jugar'}</Text>
+            <Text style={styles.cardCopy}>{activeSession ? 'Compartí el código para que se unan.' : 'No hay una partida en curso. Empezá una nueva para invitar jugadores.'}</Text>
+            {activeSession && <View style={styles.codeBox}>
+              <Text style={styles.codeLabel}>CÓDIGO DE MESA</Text>
               <Text style={styles.code}>{table.code}</Text>
-            </View>
-            {session && (
+            </View>}
+            {activeSession && <TableQRCode code={table.code} />}
+            {activeSession && (
               <View style={styles.sessionRow}>
                 <MaterialCommunityIcons name="cards-playing-outline" size={20} color={colors.forest} />
                 <View style={styles.sessionText}>
-                  <Text style={styles.sessionTitle}>{session.status === 'finished' ? 'Last game finished' : 'Game in progress'}</Text>
-                  <Text style={styles.sessionMeta}>{session.players.length} players · {session.status === 'finished' ? 'Final scores ready' : 'Scores saved'}</Text>
+                  <Text style={styles.sessionTitle}>Partida en curso</Text>
+                  <Text style={styles.sessionMeta}>{activeSession.players.length} jugadores · Puntos guardados</Text>
                 </View>
               </View>
             )}
-            {session && selfPlayer && <ScoreGameCard title={table.name || 'Game night'} detail={`${session.players.length} players · ${selfPlayer.name}`} score={myTotal} label={session.status === 'finished' ? 'LAST GAME' : 'YOUR SCORE'} featured />}
-            <Button mode="contained" icon="arrow-right" onPress={() => session ? router.push(`/sessions/${session.id}`) : router.push('/sessions/new')}>
-              {session ? 'Open game' : 'Start a game'}
+            {activeSession && selfPlayer && <ScoreGameCard title={table.name || 'Noche de juegos'} detail={`${activeSession.players.length} jugadores · ${selfPlayer.name}`} score={myTotal} label="TUS PUNTOS" featured />}
+            <Button mode="contained" icon="arrow-right" onPress={() => activeSession ? router.push(`/sessions/${activeSession.id}`) : router.push('/sessions/new')}>
+              {activeSession ? 'Abrir partida' : 'Empezar una partida'}
             </Button>
           </View>
         ) : (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIcon}><MaterialCommunityIcons name="table-furniture" size={32} color={colors.forest} /></View>
-            <Text variant="headlineSmall" style={styles.emptyTitle}>Your next game starts here</Text>
-            <Text style={styles.emptyCopy}>Create a table to keep scores together, with no account required.</Text>
-            <Button mode="contained" icon="plus" onPress={() => router.navigate('/')}>Create a table</Button>
+            <Text variant="headlineSmall" style={styles.emptyTitle}>Tu próxima partida empieza acá</Text>
+            <Text style={styles.emptyCopy}>Creá una mesa para llevar los puntos. No necesitás una cuenta.</Text>
+            <Button mode="contained" icon="plus" onPress={() => router.navigate('/')}>Crear una mesa</Button>
           </View>
         )}
 
         {error && (
           <View style={styles.errorCard}>
             <Text style={styles.error}>{error}</Text>
-            <Button mode="text" onPress={() => restore().catch(() => undefined)}>Try again</Button>
+            <Button mode="text" onPress={() => restore().catch(() => undefined)}>Reintentar</Button>
           </View>
         )}
 
         <View style={styles.tip}>
           <MaterialCommunityIcons name="lightbulb-outline" size={20} color={colors.orangeInk} />
-          <Text style={styles.tipText}>Tip: create a scoring sheet before you start a new game.</Text>
+          <Text style={styles.tipText}>Consejo: creá una planilla de puntos antes de empezar una partida.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScoreTextField as TextInput } from '@decodadev02/scoreui';
 import { ActivityIndicator, HelperText, Text } from 'react-native-paper';
@@ -10,11 +10,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
+import { TableQRCode } from '@/components/TableQRCode';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { useEntryStore } from '@/stores/useEntryStore';
 
 export default function DashboardScreen() {
   const [usernameDraft, setUsernameDraft] = useState<string | null>(null);
   const [tableName, setTableName] = useState('');
   const store = useTableScoreStore();
+  const activeSession = store.session?.status === 'active' ? store.session : null;
+  const authReady = useAuthStore((state) => state.hasRestored);
+  const user = useAuthStore((state) => state.user);
+  const entered = useEntryStore((state) => state.entered);
   const username = usernameDraft ?? store.username;
 
   async function createTable() {
@@ -27,10 +34,13 @@ export default function DashboardScreen() {
   }
 
   function openGame() {
-    if (store.session) router.push(`/sessions/${store.session.id}`);
+    if (activeSession) router.push(`/sessions/${activeSession.id}`);
     else if (store.table) router.push('/sessions/new');
     else createTable();
   }
+
+  if (!authReady) return <SafeAreaView style={styles.safe}><ActivityIndicator style={{ marginTop: 80 }} /></SafeAreaView>;
+  if (!user && !entered) return <Redirect href="/welcome" />;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -39,7 +49,7 @@ export default function DashboardScreen() {
           <View style={styles.brandMark}><MaterialCommunityIcons name="dice-multiple" color={colors.canvas} size={22} /></View>
           <View>
             <Text style={styles.brandName}>MeepVP</Text>
-            <Text style={styles.brandTag}>YOUR TABLE, YOUR RULES</Text>
+            <Text style={styles.brandTag}>TU MESA, TUS REGLAS</Text>
           </View>
         </View>
 
@@ -48,51 +58,52 @@ export default function DashboardScreen() {
           <View style={styles.heroCircleSmall} />
           <View style={styles.heroBadge}>
             <MaterialCommunityIcons name="cards-outline" color={colors.forest} size={16} />
-            <Text style={styles.heroBadgeText}>READY FOR GAME NIGHT</Text>
+            <Text style={styles.heroBadgeText}>TODO LISTO PARA JUGAR</Text>
           </View>
-          <Text style={styles.heroTitle}>Play more.\nCount less.</Text>
-          <Text style={styles.heroCopy}>A little less math, a lot more game.</Text>
+          <Text style={styles.heroTitle}>Jugá más.{'\n'}Contá menos.</Text>
+          <Text style={styles.heroCopy}>Menos cuentas, más juego.</Text>
           <Button
             mode="contained"
-            icon={store.session ? 'arrow-right' : 'plus'}
+            icon={activeSession ? 'arrow-right' : 'plus'}
             loading={store.isCreatingTable}
             disabled={!store.hasRestored || store.isRestoring}
             onPress={openGame}
             style={styles.heroButton}
           >
-            {store.session ? 'Return to game' : store.table ? 'Start a game' : 'Create a table'}
+            {activeSession ? 'Volver a la partida' : store.table ? 'Empezar una partida' : 'Crear una mesa'}
           </Button>
         </LinearGradient>
 
         <View style={styles.sectionTitle}>
           <View>
-            <Text style={styles.eyebrow}>THE TABLE</Text>
-            <Text variant="headlineSmall" style={styles.heading}>Tonight&apos;s game</Text>
+            <Text style={styles.eyebrow}>LA MESA</Text>
+            <Text variant="headlineSmall" style={styles.heading}>{activeSession ? 'La partida de hoy' : 'Tu próxima partida'}</Text>
           </View>
           <View style={styles.statusPill}>
-            <View style={[styles.statusDot, { backgroundColor: store.table ? colors.forest : colors.orange }]} />
-            <Text style={styles.statusText}>{store.table ? 'Ready' : 'New'}</Text>
+            <View style={[styles.statusDot, { backgroundColor: activeSession || store.table ? colors.forest : colors.orange }]} />
+            <Text style={styles.statusText}>{activeSession ? 'En curso' : store.table ? 'Lista' : 'Nueva'}</Text>
           </View>
         </View>
 
         <View style={styles.tableCard}>
           {!store.hasRestored || store.isRestoring ? (
             <ActivityIndicator />
-          ) : store.table ? (
+          ) : store.table || activeSession ? (
             <>
               <View style={styles.tableCardTop}>
                 <View style={styles.tableIcon}><MaterialCommunityIcons name="table-furniture" color={colors.forest} size={24} /></View>
                 <View style={styles.tableDetails}>
-                  <Text variant="titleLarge" style={styles.cardTitle}>{store.table.name || 'Game night'}</Text>
-                  <Text style={styles.muted}>{store.session ? 'Your game is in progress' : 'Waiting for players'}</Text>
+                  <Text variant="titleLarge" style={styles.cardTitle}>{activeSession ? store.rules.find((rule) => rule.id === activeSession.ruleId)?.gameName ?? 'Partida en curso' : 'Mesa lista para jugar'}</Text>
+                  <Text style={styles.muted}>{activeSession ? 'Hay una partida en curso' : 'No hay una partida en curso'}</Text>
                 </View>
               </View>
-              <View style={styles.codeStrip}>
-                <Text style={styles.codeLabel}>TABLE CODE</Text>
-                <Text style={styles.codeValue}>{store.table.code}</Text>
-              </View>
+              {activeSession && <View style={styles.codeStrip}>
+                <Text style={styles.codeLabel}>CÓDIGO DE MESA</Text>
+                <Text style={styles.codeValue}>{activeSession.tableCode}</Text>
+              </View>}
+              {activeSession && <TableQRCode code={activeSession.tableCode} />}
               <Button mode="contained" icon="arrow-right" onPress={openGame}>
-                {store.session ? 'Open game' : 'Start scoring'}
+                {activeSession ? 'Abrir partida' : 'Empezar una partida'}
               </Button>
             </>
           ) : (
@@ -100,20 +111,20 @@ export default function DashboardScreen() {
               <View style={styles.tableCardTop}>
                 <View style={styles.tableIcon}><MaterialCommunityIcons name="account-group-outline" color={colors.forest} size={25} /></View>
                 <View style={styles.tableDetails}>
-                  <Text variant="titleLarge" style={styles.cardTitle}>Make room for everyone</Text>
-                  <Text style={styles.muted}>No sign-up needed. Create a table and share its code.</Text>
+                  <Text variant="titleLarge" style={styles.cardTitle}>Hay lugar para todos</Text>
+                  <Text style={styles.muted}>Creá una mesa y compartí su código. No hace falta registrarse.</Text>
                 </View>
               </View>
-              <TextInput label="Table name" placeholder="Friday game night" value={tableName} onChangeText={setTableName} mode="outlined" />
-              <Button mode="contained" icon="plus" loading={store.isCreatingTable} onPress={createTable}>Create table</Button>
+              <TextInput label="Nombre de la mesa" placeholder="Noche de juegos" value={tableName} onChangeText={setTableName} mode="outlined" />
+              <Button mode="contained" icon="plus" loading={store.isCreatingTable} onPress={createTable}>Crear mesa</Button>
             </>
           )}
         </View>
 
         <View style={styles.sectionTitle}>
           <View>
-            <Text style={styles.eyebrow}>MAKE IT YOURS</Text>
-            <Text variant="headlineSmall" style={styles.heading}>Quick actions</Text>
+            <Text style={styles.eyebrow}>A TU MANERA</Text>
+            <Text variant="headlineSmall" style={styles.heading}>Acciones rápidas</Text>
           </View>
         </View>
         <View style={styles.actions}>
@@ -121,39 +132,39 @@ export default function DashboardScreen() {
             <View style={[styles.actionIcon, { backgroundColor: colors.orangePale }]}>
               <MaterialCommunityIcons name="table-edit" color={colors.orangeInk} size={25} />
             </View>
-            <Text variant="titleMedium" style={styles.actionTitle}>Scoring sheet</Text>
-            <Text style={styles.muted}>Build rules that fit your game.</Text>
-            <Button mode="text" icon="arrow-right" onPress={() => router.push('/rules/new')}>Create</Button>
+            <Text variant="titleMedium" style={styles.actionTitle}>Planilla de puntos</Text>
+            <Text style={styles.muted}>Armá reglas para tu juego.</Text>
+            <Button mode="text" icon="arrow-right" onPress={() => router.push('/rules/new')}>Crear</Button>
           </View>
           <View style={[styles.actionCard, styles.actionCool]}>
             <View style={[styles.actionIcon, { backgroundColor: colors.mint }]}>
               <MaterialCommunityIcons name="bookshelf" color={colors.forest} size={25} />
             </View>
-            <Text variant="titleMedium" style={styles.actionTitle}>Your library</Text>
-            <Text style={styles.muted}>Keep favorite games close.</Text>
-            <Button mode="text" icon="arrow-right" onPress={() => router.push('/library')}>Explore</Button>
+            <Text variant="titleMedium" style={styles.actionTitle}>Tu biblioteca</Text>
+            <Text style={styles.muted}>Tené tus juegos favoritos a mano.</Text>
+            <Button mode="text" icon="arrow-right" onPress={() => router.push('/library')}>Explorar</Button>
           </View>
         </View>
 
-        <Button mode="contained-tonal" icon="file-pdf-box" style={styles.pdfAction} onPress={() => router.push('/pdf/reader')}>Upload PDF rulebook</Button>
-        <Button mode="outlined" icon="account-group-outline" style={styles.communityAction} onPress={() => router.push('/community/rules')}>Find community scoring rules</Button>
-        <Button mode="outlined" icon="calendar-plus" style={styles.communityAction} onPress={() => router.push('/schedule')}>Schedule a game</Button>
+        <Button mode="contained-tonal" icon="file-pdf-box" style={styles.pdfAction} onPress={() => router.push('/pdf/reader')}>Subir reglamento en PDF</Button>
+        <Button mode="outlined" icon="account-group-outline" style={styles.communityAction} onPress={() => router.push('/community/rules')}>Buscar planillas de la comunidad</Button>
+        <Button mode="outlined" icon="calendar-plus" style={styles.communityAction} onPress={() => router.push('/schedule')}>Programar una partida</Button>
 
         <View style={styles.sectionTitle}>
           <View>
-            <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
-            <Text variant="headlineSmall" style={styles.heading}>Bring your games</Text>
+            <Text style={styles.eyebrow}>TU COLECCIÓN</Text>
+            <Text variant="headlineSmall" style={styles.heading}>Traé tus juegos</Text>
           </View>
-          <Text style={styles.count}>{store.collection.length} games</Text>
+          <Text style={styles.count}>{store.collection.length} juegos</Text>
         </View>
         <View style={styles.importCard}>
           <View style={styles.importHeader}>
             <MaterialCommunityIcons name="database-import-outline" color={colors.forest} size={23} />
-            <Text variant="titleMedium" style={styles.cardTitle}>Connect BoardGameGeek</Text>
+            <Text variant="titleMedium" style={styles.cardTitle}>Conectar BoardGameGeek</Text>
           </View>
-          <Text style={styles.muted}>Enter your BGG username to see your collection here.</Text>
-          <TextInput label="BGG username" value={username} onChangeText={setUsernameDraft} autoCapitalize="none" mode="outlined" />
-          <Button mode="outlined" icon="download" loading={store.isLoadingCollection} disabled={!store.hasRestored || !username.trim()} onPress={importCollection}>Import collection</Button>
+          <Text style={styles.muted}>Ingresá tu usuario de BGG para ver tu colección acá.</Text>
+          <TextInput label="Usuario de BGG" value={username} onChangeText={setUsernameDraft} autoCapitalize="none" mode="outlined" />
+          <Button mode="outlined" icon="download" loading={store.isLoadingCollection} disabled={!store.hasRestored || !username.trim()} onPress={importCollection}>Importar colección</Button>
         </View>
         {store.error && <HelperText type="error" visible>{store.error}</HelperText>}
         {store.collectionStatus && <HelperText type="info" visible>{store.collectionStatus}</HelperText>}
@@ -162,7 +173,7 @@ export default function DashboardScreen() {
             <View style={styles.gameMark}><MaterialCommunityIcons name="dice-5-outline" color={colors.forest} size={22} /></View>
             <View style={styles.gameDetails}>
               <Text variant="titleSmall">{game.name}</Text>
-              <Text style={styles.muted}>{game.yearPublished || 'Year unknown'} · {game.minPlayers ?? '?'}–{game.maxPlayers ?? '?'} players</Text>
+              <Text style={styles.muted}>{game.yearPublished || 'Año desconocido'} · {game.minPlayers ?? '?'}–{game.maxPlayers ?? '?'} jugadores</Text>
             </View>
           </View>
         ))}

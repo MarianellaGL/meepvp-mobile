@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         setAuthToken(null);
         await saveAuthToken(null);
       } else {
-        set({ error: cause instanceof Error ? cause.message : 'Could not restore your account.' });
+        set({ error: cause instanceof Error ? cause.message : 'No pudimos recuperar tu cuenta.' });
       }
     } finally {
       set({ isRestoring: false, hasRestored: true });
@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await acceptSession(await api.signUp(username.trim(), password), set, get);
     } catch (cause) {
-      set({ error: cause instanceof Error ? cause.message : 'Could not create account.' });
+      set({ error: cause instanceof Error ? cause.message : 'No pudimos crear la cuenta.' });
       throw cause;
     } finally { set({ isBusy: false }); }
   },
@@ -62,7 +62,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await acceptSession(await api.logIn(username.trim(), password), set, get);
     } catch (cause) {
-      set({ error: cause instanceof Error ? cause.message : 'Could not log in.' });
+      set({ error: cause instanceof Error ? cause.message : 'No pudimos iniciar sesión.' });
       throw cause;
     } finally { set({ isBusy: false }); }
   },
@@ -87,7 +87,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await saveAuthToken(null);
         set({ user: null, stats: null, sessions: [] });
       }
-      set({ error: cause instanceof Error ? cause.message : 'Could not load your stats.' });
+      set({ error: cause instanceof Error ? cause.message : 'No pudimos cargar tus estadísticas.' });
       throw cause;
     }
   },
@@ -105,5 +105,5 @@ async function acceptSession(session: AuthSession, set: typeof useAuthStore.setS
     }
   } catch { claimError = true; }
   await get().refresh();
-  if (claimError) set({ error: 'Signed in, but your previous game could not be added to this account.' });
+  if (claimError) set({ error: 'Iniciaste sesión, pero no pudimos vincular tu partida anterior a la cuenta.' });
 }

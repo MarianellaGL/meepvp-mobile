@@ -50,6 +50,20 @@ export class APIRequestError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }
 
+function apiErrorMessage(message: string | undefined, status: number): string {
+  const known: Record<string, string> = {
+    'invalid username or password': 'Usuario o contraseña incorrectos.',
+    'username is already taken': 'Ese nombre de usuario ya está en uso.',
+    'login required': 'Tenés que iniciar sesión.',
+    'host token required': 'Solo el anfitrión puede hacer eso.',
+    'resource not found': 'No encontramos lo que buscabas.',
+    'invalid input': 'Revisá los datos ingresados.',
+  };
+  if (message && known[message]) return known[message];
+  if (status >= 500) return 'El servidor tuvo un problema. Reintentá en unos minutos.';
+  return 'No pudimos completar la solicitud. Revisá los datos e intentá de nuevo.';
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${baseURL}${path}`, {
     ...options,
@@ -57,7 +71,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   const body = (await response.json()) as T & { error?: string };
   if (!response.ok && response.status !== 202) {
-    throw new APIRequestError(body.error ?? 'Something went wrong.', response.status);
+    throw new APIRequestError(apiErrorMessage(body.error, response.status), response.status);
   }
   return body;
 }
@@ -81,17 +95,18 @@ export const api = {
     try {
       response = await fetch(`${baseURL}/v1/pdf/extract`, { method: 'POST', body: data });
     } catch {
-      throw new Error('Could not reach the PDF service. Check that the API is running and your phone is on the same network.');
+      throw new Error('No pudimos conectar con el servicio de PDF. Revisá que la API esté activa y el celular use la misma red.');
     }
     const body = await response.json().catch(() => null) as (PDFExtract & { error?: string }) | null;
-    if (!response.ok) throw new Error(body?.error ?? `The PDF service returned HTTP ${response.status}.`);
+    if (!response.ok) throw new Error(apiErrorMessage(body?.error, response.status));
     if (!body || typeof body.text !== 'string' || !Array.isArray(body.scoringExcerpts)) {
-      throw new Error('The PDF service returned an invalid response.');
+      throw new Error('El servicio de PDF devolvió una respuesta inválida.');
     }
     return body;
   },
   createTable: (name: string) =>
     request<AnonymousTable>('/v1/tables', { method: 'POST', body: JSON.stringify({ name }) }),
+  currentSessionByTable: (code: string) => request<ScoreSession>(`/v1/tables/${encodeURIComponent(code)}/current-session`),
   createScoringRule: (rule: CreateScoringRule) => request<ScoringRule>('/v1/scoring-rules', { method: 'POST', body: JSON.stringify(rule) }),
   listScoringRules: () => request<ScoringRule[]>('/v1/scoring-rules'),
   searchCommunityRules: (query: string, bggId?: number) => request<ScoringRule[]>(`/v1/community/scoring-rules?query=${encodeURIComponent(query)}${bggId ? `&bggId=${bggId}` : ''}`),

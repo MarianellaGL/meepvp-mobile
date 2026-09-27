@@ -110,11 +110,11 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
             await saveLibrary({ username: savedLibrary.username, collection: savedLibrary.collection, scoringRules: get().rules, players: knownPlayers, myPlayerName: savedLibrary.myPlayerName });
           }
         } catch {
-          set({ error: 'Could not restore your last game. Check the connection and try again.' });
+          set({ error: 'No pudimos recuperar tu última partida. Revisá la conexión y reintentá.' });
         }
       }
     } catch {
-      set({ error: 'Could not restore your saved games.' });
+      set({ error: 'No pudimos recuperar tus partidas guardadas.' });
     } finally {
       set({ isRestoring: false, hasRestored: true });
     }
@@ -126,18 +126,18 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
         const result = await api.getCollection(username.trim());
         if (result.status === 'ready') {
           const collection = result.games ?? [];
-          set({ collection, username: username.trim(), collectionStatus: `${collection.length} games imported.` });
+          set({ collection, username: username.trim(), collectionStatus: `${collection.length} juegos importados.` });
           try { await saveLibrary({ username: username.trim(), collection, scoringRules: get().rules, players: get().knownPlayers, myPlayerName: get().myPlayerName }); }
-          catch { set({ error: 'Games imported, but this device could not save them for next time.' }); }
+          catch { set({ error: 'Importamos los juegos, pero este dispositivo no pudo guardarlos.' }); }
           return;
         }
         const seconds = result.retryAfterSeconds ?? 5;
-        set({ collectionStatus: `BoardGameGeek is preparing your collection. Retrying in ${seconds}s…` });
+        set({ collectionStatus: `BoardGameGeek está preparando tu colección. Reintentamos en ${seconds} s…` });
         await new Promise<void>((resolve) => setTimeout(resolve, seconds * 1000));
       }
-      throw new Error('BoardGameGeek is still preparing your collection. Please try again in a moment.');
+      throw new Error('BoardGameGeek todavía está preparando tu colección. Reintentá en un momento.');
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Unable to load your collection.' });
+      set({ error: error instanceof Error ? error.message : 'No pudimos cargar tu colección.' });
       throw error;
     } finally {
 		set({ isLoadingCollection: false });
@@ -146,17 +146,17 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   async createTable(name) {
     set({ isCreatingTable: true, error: null });
     try {
-      const table = await api.createTable(name.trim() || 'Game night');
+      const table = await api.createTable(name.trim() || 'Noche de juegos');
       set({ table, session: null, selfPlayerId: null, scheduledGames: [] });
       try {
         await saveTable(table);
         await saveSessionId(null);
         await saveSelfPlayerId(null);
       } catch {
-        set({ error: 'Table created, but this device could not save it for next time.' });
+        set({ error: 'Creamos la mesa, pero este dispositivo no pudo guardarla.' });
       }
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Unable to create a table.' });
+      set({ error: error instanceof Error ? error.message : 'No pudimos crear la mesa.' });
       throw error;
     } finally {
       set({ isCreatingTable: false });
@@ -169,15 +169,15 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       const rules = [latestRule, ...get().rules.filter((saved) => saved.id !== latestRule.id)];
       set({ latestRule, rules });
       try { await saveLibrary({ username: get().username, collection: get().collection, scoringRules: rules, players: get().knownPlayers, myPlayerName: get().myPlayerName }); }
-      catch { set({ error: 'Scoring sheet saved, but this device could not keep an offline copy.' }); }
+      catch { set({ error: 'Guardamos la planilla, pero este dispositivo no pudo guardar una copia sin conexión.' }); }
       return latestRule;
     }
-    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to save the scoring rule.' }); throw error; }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos guardar la regla de puntos.' }); throw error; }
   },
   async createScheduledGame(gameName, scheduledAt, players, ruleId) {
-    if (!get().table) await get().createTable(`${gameName.trim() || 'Game night'} table`);
+    if (!get().table) await get().createTable(`Mesa de ${gameName.trim() || 'Noche de juegos'}`);
     const table = get().table;
-    if (!table) throw new Error('Could not create a table for this game.');
+    if (!table) throw new Error('No pudimos crear la mesa para este juego.');
     try {
       const game = await api.createScheduledGame(table.code, table.hostToken, gameName.trim(), scheduledAt, players, ruleId);
       const scheduledGames = [...get().scheduledGames, game].sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
@@ -186,7 +186,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       catch { /* The game is saved even if this device cannot schedule a reminder. */ }
       return game;
     } catch (cause) {
-      set({ error: cause instanceof Error ? cause.message : 'Could not schedule the game.' });
+      set({ error: cause instanceof Error ? cause.message : 'No pudimos programar la partida.' });
       throw cause;
     }
   },
@@ -198,24 +198,24 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       set({ scheduledGames });
       syncScoreSheetReminders(scheduledGames).catch(() => undefined);
     }
-    catch (cause) { set({ error: cause instanceof Error ? cause.message : 'Could not load scheduled games.' }); throw cause; }
+    catch (cause) { set({ error: cause instanceof Error ? cause.message : 'No pudimos cargar las partidas programadas.' }); throw cause; }
   },
   async setScheduledGameRule(id, ruleId) {
     const table = get().table;
-    if (!table) throw new Error('Create a table first.');
+    if (!table) throw new Error('Primero creá una mesa.');
     try {
       const updated = await api.setScheduledGameRule(id, table.hostToken, ruleId);
       const scheduledGames = get().scheduledGames.map((game) => game.id === id ? updated : game);
       set({ scheduledGames });
       syncScoreSheetReminders(scheduledGames).catch(() => undefined);
     } catch (cause) {
-      set({ error: cause instanceof Error ? cause.message : 'Could not attach the scoring sheet.' });
+      set({ error: cause instanceof Error ? cause.message : 'No pudimos vincular la planilla.' });
       throw cause;
     }
   },
   async setScheduledGameSession(id, sessionId) {
     const table = get().table;
-    if (!table) throw new Error('Create a table first.');
+    if (!table) throw new Error('Primero creá una mesa.');
     const updated = await api.setScheduledGameSession(id, table.hostToken, sessionId);
     const scheduledGames = get().scheduledGames.map((game) => game.id === id ? updated : game);
     set({ scheduledGames });
@@ -223,7 +223,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   },
   async savePDF(gameName, gameId, document) {
     const name = gameName.trim();
-    if (!name) throw new Error('Enter a game name before saving the PDF.');
+    if (!name) throw new Error('Ingresá el nombre del juego antes de guardar el PDF.');
     const imported: SavedPDF = { gameName: name, ...(gameId ? { gameId } : {}), document, importedAt: new Date().toISOString() };
     const savedPDFs = [imported, ...get().savedPDFs.filter((saved) => gameId ? saved.gameId !== gameId : saved.gameName.toLocaleLowerCase() !== name.toLocaleLowerCase())].slice(0, 10);
     await savePDFs(savedPDFs);
@@ -234,13 +234,13 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       const rules = await api.listScoringRules();
       set({ rules });
       try { await saveLibrary({ username: get().username, collection: get().collection, scoringRules: rules, players: get().knownPlayers, myPlayerName: get().myPlayerName }); }
-      catch { set({ error: 'Scoring sheets loaded, but this device could not keep an offline copy.' }); }
+      catch { set({ error: 'Cargamos las planillas, pero este dispositivo no pudo guardar una copia sin conexión.' }); }
     }
-    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to load scoring sheets.' }); throw error; }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos cargar las planillas.' }); throw error; }
   },
   async createSession(ruleId, players) {
     const { table } = get();
-    if (!table) throw new Error('Create a table first.');
+    if (!table) throw new Error('Primero creá una mesa.');
     set({ error: null });
     try {
       const session = await api.createSession(table.code, table.hostToken, ruleId, players);
@@ -253,44 +253,44 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       }
       set({ knownPlayers });
       try { await saveSessionId(session.id); }
-      catch { set({ error: 'Game started, but this device could not save it for next time.' }); }
+      catch { set({ error: 'Empezó la partida, pero este dispositivo no pudo guardarla.' }); }
       try { await saveSelfPlayerId(selfPlayerId); }
-      catch { set({ error: 'Game started, but this device could not save your player identity.' }); }
+      catch { set({ error: 'Empezó la partida, pero este dispositivo no pudo guardar tu identidad de jugador.' }); }
       try { await saveLibrary({ username: get().username, collection: get().collection, scoringRules: get().rules, players: knownPlayers, myPlayerName: get().myPlayerName }); }
-      catch { set({ error: 'Game started, but this device could not save the player list.' }); }
+      catch { set({ error: 'Empezó la partida, pero este dispositivo no pudo guardar la lista de jugadores.' }); }
       return session;
     }
-    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to create the game session.' }); throw error; }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos empezar la partida.' }); throw error; }
   },
   async setMyPlayerName(name) {
     const myPlayerName = name.trim();
     if (!myPlayerName) return;
     set({ myPlayerName });
     try { await saveLibrary({ username: get().username, collection: get().collection, scoringRules: get().rules, players: get().knownPlayers, myPlayerName }); }
-    catch { set({ error: 'Could not save your player name on this device.' }); }
+    catch { set({ error: 'No pudimos guardar tu nombre de jugador en este dispositivo.' }); }
   },
   async joinSessionAsMe(name) {
     const { session, isJoiningSession } = get();
     if (!session || isJoiningSession) return;
     const myPlayerName = name.trim();
-    if (!myPlayerName) throw new Error('Enter your player name.');
+    if (!myPlayerName) throw new Error('Ingresá tu nombre de jugador.');
     set({ isJoiningSession: true, error: null });
     try {
       const updated = await api.addPlayer(session.id, myPlayerName);
       const selfPlayerId = updated.players.find((player) => player.name.toLocaleLowerCase() === myPlayerName.toLocaleLowerCase())?.id ?? null;
       set({ session: updated, selfPlayerId });
       try { await saveSelfPlayerId(selfPlayerId); }
-      catch { set({ error: 'You joined, but this device could not save your player identity.' }); }
+      catch { set({ error: 'Te uniste, pero este dispositivo no pudo guardar tu identidad de jugador.' }); }
       await get().setMyPlayerName(myPlayerName);
       const knownPlayers = [...get().knownPlayers];
       if (!knownPlayers.some((saved) => saved.toLocaleLowerCase() === myPlayerName.toLocaleLowerCase())) {
         knownPlayers.push(myPlayerName);
         set({ knownPlayers });
         try { await saveLibrary({ username: get().username, collection: get().collection, scoringRules: get().rules, players: knownPlayers, myPlayerName }); }
-        catch { set({ error: 'You joined, but this device could not save the player list.' }); }
+        catch { set({ error: 'Te uniste, pero este dispositivo no pudo guardar la lista de jugadores.' }); }
       }
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Could not add you to this game.' });
+      set({ error: error instanceof Error ? error.message : 'No pudimos sumarte a esta partida.' });
       throw error;
     } finally {
       set({ isJoiningSession: false });
@@ -305,13 +305,13 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       const selfPlayerId = session.players.some((player) => player.id === savedSelfPlayerId) ? savedSelfPlayerId : null;
       set({ session, selfPlayerId });
       try { await saveSessionId(session.id); }
-      catch { set({ error: 'Game loaded, but this device could not save it for next time.' }); }
+      catch { set({ error: 'Cargamos la partida, pero este dispositivo no pudo guardarla.' }); }
       if (!selfPlayerId) {
         try { await saveSelfPlayerId(null); }
-        catch { set({ error: 'Game loaded, but this device could not update your player identity.' }); }
+        catch { set({ error: 'Cargamos la partida, pero este dispositivo no pudo actualizar tu identidad de jugador.' }); }
       }
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Unable to load the game.' });
+      set({ error: error instanceof Error ? error.message : 'No pudimos cargar la partida.' });
       throw error;
     } finally {
       set({ isLoadingSession: false });
@@ -322,25 +322,25 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     if (!session || session.status === 'finished' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
     set({ isUpdatingScore: true, error: null });
     try { set({ session: await api.setScore(session.id, playerId, fieldId, value) }); }
-    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to update the score.' }); throw error; }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos actualizar los puntos.' }); throw error; }
     finally { set({ isUpdatingScore: false }); }
   },
   async adjustPoints(playerId, delta) {
     const { session, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();
     if (!session || session.status === 'finished' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
-    if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > 10000) throw new Error('Enter a point value from 1 to 10,000.');
+    if (!Number.isSafeInteger(delta) || delta === 0 || Math.abs(delta) > 10000) throw new Error('Ingresá entre 1 y 10.000 puntos.');
     set({ isAdjustingPoints: true, error: null });
     try { set({ session: await api.adjustPoints(session.id, playerId, delta) }); }
-    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to update points.' }); throw error; }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos actualizar los puntos.' }); throw error; }
     finally { set({ isAdjustingPoints: false }); }
   },
   async finishSession() {
     const { session, table, isUpdatingScore, isAdjustingPoints, isFinishingSession } = get();
     if (!session || session.status === 'finished' || isUpdatingScore || isAdjustingPoints || isFinishingSession) return;
-    if (!table || table.code !== session.tableCode) throw new Error('Only the table host can finish this game.');
+    if (!table || table.code !== session.tableCode) throw new Error('Solo el anfitrión puede terminar esta partida.');
     set({ isFinishingSession: true, error: null });
     try { set({ session: await api.finishSession(session.id, table.hostToken) }); }
-    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to finish the game.' }); throw error; }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos terminar la partida.' }); throw error; }
     finally { set({ isFinishingSession: false }); }
   },
   async reopenSession() {
@@ -348,7 +348,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     if (!session || !table || table.code !== session.tableCode || isReopeningSession) return;
     set({ isReopeningSession: true, error: null });
     try { set({ session: await api.reopenSession(session.id, table.hostToken) }); }
-    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to reopen the game.' }); throw error; }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos reabrir la partida.' }); throw error; }
     finally { set({ isReopeningSession: false }); }
   },
   clearError: () => set({ error: null }),

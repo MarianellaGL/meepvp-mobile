@@ -17,7 +17,7 @@ const emptyField = (): DraftField => ({ name: '', kind: 'checkbox', pointsPerUni
 export default function NewRuleScreen() {
   const { gameId, game: selectedGame, fromPdf, fromImage, planId } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; fromImage?: string; planId?: string }>();
   const [gameName, setGameName] = useState(selectedGame ?? '');
-  const [name, setName] = useState('Standard scoring');
+  const [name, setName] = useState('Puntuación estándar');
   const [winCondition, setWinCondition] = useState<'highest_total' | 'lowest_total'>('highest_total');
   const [isPublic, setIsPublic] = useState(false);
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
@@ -33,7 +33,7 @@ export default function NewRuleScreen() {
     const rule: CreateScoringRule = {
       ...(Number.isSafeInteger(Number(gameId)) && Number(gameId) > 0 ? { bggId: Number(gameId) } : {}),
       gameName: gameName.trim(),
-      name: name.trim() || 'Standard scoring',
+      name: name.trim() || 'Puntuación estándar',
       winCondition,
       isPublic: isPublic && !!account,
       fields: fields.map((field) => ({
@@ -60,46 +60,46 @@ export default function NewRuleScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>NEW SCORE SHEET</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Make scoring simple.</Text>
-        <Text style={styles.subtitle}>Set up the points once. Enjoy the game every time.</Text>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>NUEVA PLANILLA</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>Contar puntos es más fácil.</Text>
+        <Text style={styles.subtitle}>Configurá los puntos una vez y disfrutá cada partida.</Text>
 
         {(fromPdf === '1' || fromImage === '1') && pdfDraft && (
           <View style={styles.formCard}>
-            <Text style={styles.sectionLabel}>FROM {pdfDraft.fileName.toUpperCase()}</Text>
-            <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? `Use these passages as a reference. Check the ${fromImage === '1' ? 'image' : 'PDF'} before assigning point values.` : 'No scoring passages were found in the extracted text.'}</Text>
+            <Text style={styles.sectionLabel}>DESDE {pdfDraft.fileName.toUpperCase()}</Text>
+            <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? `Usá estos fragmentos como referencia. Revisá ${fromImage === '1' ? 'la imagen' : 'el PDF'} antes de asignar puntos.` : 'No encontramos fragmentos sobre puntuación en el texto extraído.'}</Text>
             {pdfDraft.scoringExcerpts.slice(0, 5).map((excerpt, index) => <Text key={`${index}-${excerpt.slice(0, 10)}`} style={styles.pdfExcerpt}>{excerpt}</Text>)}
           </View>
         )}
 
         <View style={styles.formCard}>
-          <Text style={styles.sectionLabel}>THE BASICS</Text>
-          <TextInput label="Game name" value={gameName} onChangeText={setGameName} mode="outlined" />
-          <TextInput label="Scoring sheet name" value={name} onChangeText={setName} mode="outlined" />
-          <Text style={styles.fieldLabel}>Who wins?</Text>
-          <SegmentedButtons value={winCondition} onValueChange={(value) => setWinCondition(value as typeof winCondition)} buttons={[{ value: 'highest_total', label: 'Highest score' }, { value: 'lowest_total', label: 'Lowest score' }]} />
+          <Text style={styles.sectionLabel}>LO BÁSICO</Text>
+          <TextInput label="Nombre del juego" value={gameName} onChangeText={setGameName} mode="outlined" />
+          <TextInput label="Nombre de la planilla" value={name} onChangeText={setName} mode="outlined" />
+          <Text style={styles.fieldLabel}>¿Quién gana?</Text>
+          <SegmentedButtons value={winCondition} onValueChange={(value) => setWinCondition(value as typeof winCondition)} buttons={[{ value: 'highest_total', label: 'Más puntos' }, { value: 'lowest_total', label: 'Menos puntos' }]} />
         </View>
 
         <View style={styles.shareCard}>
-          <ScoreSwitch label="Share this sheet with the community" value={isPublic && !!account} onChange={setIsPublic} disabled={!account} />
+          <ScoreSwitch label="Compartir planilla con la comunidad" value={isPublic && !!account} onChange={setIsPublic} disabled={!account} />
           {!account && <View style={styles.sharePrompt}>
-            <Text style={styles.shareCopy}>Log in to publish a scoring sheet to the community.</Text>
-            <Button mode="text" style={styles.loginButton} onPress={() => router.push('/auth')}>Log in or sign up</Button>
+            <Text style={styles.shareCopy}>Iniciá sesión para publicar una planilla en la comunidad.</Text>
+            <Button mode="text" style={styles.loginButton} onPress={() => router.push('/auth')}>Iniciar sesión o registrarse</Button>
           </View>}
         </View>
 
-        <View style={styles.sectionHeader}><View><Text style={styles.sectionLabel}>BUILD THE SCORE</Text><Text variant="headlineSmall" style={styles.heading}>Score fields</Text></View><Text style={styles.fieldCount}>{fields.length} total</Text></View>
+        <View style={styles.sectionHeader}><View><Text style={styles.sectionLabel}>ARMÁ LA PUNTUACIÓN</Text><Text variant="headlineSmall" style={styles.heading}>Campos de puntos</Text></View><Text style={styles.fieldCount}>{fields.length} en total</Text></View>
         {fields.map((field, index) => (
           <View key={index} style={styles.fieldCard}>
-            <View style={styles.fieldHeader}><Text style={styles.fieldNumber}>FIELD {index + 1}</Text>{fields.length > 1 && <IconButton icon="delete-outline" iconColor={colors.error} onPress={() => setFields((current) => current.filter((_, i) => i !== index))} />}</View>
-            <TextInput label="Field name" placeholder="Coins, goals, penalties…" value={field.name} onChangeText={(value) => updateField(index, { name: value })} mode="outlined" />
-            <SegmentedButtons value={field.kind} onValueChange={(value) => updateField(index, { kind: value as FieldKind })} buttons={[{ value: 'checkbox', label: 'Check' }, { value: 'counter', label: 'Count' }, { value: 'manual', label: 'Manual' }]} />
-            {field.kind !== 'manual' && <TextInput label="Points per unit" keyboardType="numbers-and-punctuation" value={field.pointsPerUnit} onChangeText={(value) => updateField(index, { pointsPerUnit: value })} mode="outlined" />}
+            <View style={styles.fieldHeader}><Text style={styles.fieldNumber}>CAMPO {index + 1}</Text>{fields.length > 1 && <IconButton icon="delete-outline" iconColor={colors.error} onPress={() => setFields((current) => current.filter((_, i) => i !== index))} />}</View>
+            <TextInput label="Nombre del campo" placeholder="Monedas, objetivos, penalizaciones…" value={field.name} onChangeText={(value) => updateField(index, { name: value })} mode="outlined" />
+            <SegmentedButtons value={field.kind} onValueChange={(value) => updateField(index, { kind: value as FieldKind })} buttons={[{ value: 'checkbox', label: 'Marca' }, { value: 'counter', label: 'Contador' }, { value: 'manual', label: 'Manual' }]} />
+            {field.kind !== 'manual' && <TextInput label="Puntos por unidad" keyboardType="numbers-and-punctuation" value={field.pointsPerUnit} onChangeText={(value) => updateField(index, { pointsPerUnit: value })} mode="outlined" />}
           </View>
         ))}
-        <Button mode="outlined" icon="plus" onPress={() => setFields((current) => [...current, emptyField()])}>Add a field</Button>
+        <Button mode="outlined" icon="plus" onPress={() => setFields((current) => [...current, emptyField()])}>Agregar campo</Button>
         {error && <Text style={styles.error}>{error}</Text>}
-        <Button mode="contained" icon="content-save-outline" loading={isSaving} disabled={!gameName.trim() || fields.some((field) => !field.name.trim())} onPress={saveRule} style={styles.save}>{planId ? 'Save sheet for scheduled game' : 'Save and choose players'}</Button>
+        <Button mode="contained" icon="content-save-outline" loading={isSaving} disabled={!gameName.trim() || fields.some((field) => !field.name.trim())} onPress={saveRule} style={styles.save}>{planId ? 'Guardar para la partida programada' : 'Guardar y elegir jugadores'}</Button>
       </ScrollView>
     </SafeAreaView>
   );

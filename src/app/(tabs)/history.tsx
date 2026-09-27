@@ -27,7 +27,7 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>GAME NIGHTS</Text>
+        <Text style={styles.eyebrow}>NOCHES DE JUEGOS</Text>
         <Text style={styles.title}>Historial</Text>
         <Text style={styles.subtitle}>{account ? 'Tus partidas terminadas y estadísticas de esta cuenta.' : 'Tu última partida terminada, guardada en este dispositivo.'}</Text>
         {account ? accountSessions.filter((game) => game.status === 'finished').map((game) => {

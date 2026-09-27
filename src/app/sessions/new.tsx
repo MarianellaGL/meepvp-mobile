@@ -17,7 +17,7 @@ export default function NewSessionScreen() {
   const [selfNameDraft, setSelfNameDraft] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const { rules, knownPlayers, myPlayerName, username, error, loadRules, createSession, createTable, setMyPlayerName, setScheduledGameSession, table, isCreatingTable } = useTableScoreStore();
-  const selfName = (selfNameDraft ?? (myPlayerName || username || 'You')).trim();
+  const selfName = (selfNameDraft ?? (myPlayerName || username || 'Vos')).trim();
 
   const enteredPlayers = playerNames.split(',').map((name) => name.trim()).filter(Boolean);
   const players = selfName ? [selfName] : [];
@@ -37,7 +37,7 @@ export default function NewSessionScreen() {
       await setMyPlayerName(selfName);
       if (!table) {
         const selectedRule = rules.find((rule) => rule.id === selectedRuleId);
-        await createTable(selectedRule ? `${selectedRule.gameName} table` : 'Game night');
+        await createTable(selectedRule ? `Mesa de ${selectedRule.gameName}` : 'Noche de juegos');
       }
       const session = await createSession(selectedRuleId, players);
       if (planId) {
@@ -52,37 +52,37 @@ export default function NewSessionScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>NEW GAME</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Set the table.</Text>
-        <Text style={styles.subtitle}>Choose how to score and invite everyone in.</Text>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>NUEVA PARTIDA</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>Prepará la mesa.</Text>
+        <Text style={styles.subtitle}>Elegí cómo contar los puntos e invitá a todos.</Text>
 
-        <View style={styles.sectionHeader}><Text style={styles.sectionLabel}>01 / SCORING SHEET</Text><Text style={styles.count}>{rules.length} available</Text></View>
+        <View style={styles.sectionHeader}><Text style={styles.sectionLabel}>01 / PLANILLA DE PUNTOS</Text><Text style={styles.count}>{rules.length} disponibles</Text></View>
         <View style={styles.card}>
           {rules.length ? (
-            <ScoreDropdown label="Scoring sheet" value={selectedRuleId} onChange={setSelectedRuleId} options={rules.map((rule) => ({ value: rule.id, label: `${rule.gameName} · ${rule.name} (${rule.fields.length} fields)` }))} />
+            <ScoreDropdown label="Planilla de puntos" value={selectedRuleId} onChange={setSelectedRuleId} options={rules.map((rule) => ({ value: rule.id, label: `${rule.gameName} · ${rule.name} (${rule.fields.length} campos)` }))} />
           ) : (
-            <View style={styles.emptyRules}><Text style={styles.emptyTitle}>No scoring sheets yet</Text><Text style={styles.emptyCopy}>Create one first, then come back to start the game.</Text><Button mode="outlined" icon="plus" onPress={() => router.push('/rules/new')}>Create scoring sheet</Button></View>
+            <View style={styles.emptyRules}><Text style={styles.emptyTitle}>Todavía no hay planillas</Text><Text style={styles.emptyCopy}>Creá una y después volvé para empezar la partida.</Text><Button mode="outlined" icon="plus" onPress={() => router.push('/rules/new')}>Crear planilla</Button></View>
           )}
         </View>
 
-        <Text style={styles.sectionLabel}>02 / PLAYERS</Text>
+        <Text style={styles.sectionLabel}>02 / JUGADORES</Text>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>You&apos;re playing too</Text>
-          <Text style={styles.cardCopy}>Your score will appear on the table with everyone else&apos;s.</Text>
-          <TextInput label="Your player name" value={selfName} onChangeText={setSelfNameDraft} mode="outlined" />
+          <Text style={styles.cardTitle}>Vos también jugás</Text>
+          <Text style={styles.cardCopy}>Tus puntos aparecerán en la mesa junto a los de los demás.</Text>
+          <TextInput label="Tu nombre de jugador" value={selfName} onChangeText={setSelfNameDraft} mode="outlined" />
         </View>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Who&apos;s playing?</Text>
-          <Text style={styles.cardCopy}>Add other players from your saved list or type their names.</Text>
+          <Text style={styles.cardTitle}>¿Quiénes juegan?</Text>
+          <Text style={styles.cardCopy}>Elegí jugadores guardados o escribí sus nombres.</Text>
           {knownPlayers.filter((player) => player.toLocaleLowerCase() !== selfName.toLocaleLowerCase()).length > 0 && <View style={styles.playerChips}>{knownPlayers.filter((player) => player.toLocaleLowerCase() !== selfName.toLocaleLowerCase()).map((player) => (
             <Chip key={player} selected={selectedPlayers.includes(player)} onPress={() => setSelectedPlayers((current) => current.includes(player) ? current.filter((name) => name !== player) : [...current, player])}>{player}</Chip>
           ))}</View>}
-          <TextInput label="Other player names" placeholder="Ana, Leo, Sam" value={playerNames} onChangeText={setPlayerNames} mode="outlined" />
+          <TextInput label="Otros jugadores" placeholder="Ana, Leo, Sam" value={playerNames} onChangeText={setPlayerNames} mode="outlined" />
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
-        <Button mode="contained" icon="play" loading={isSaving || isCreatingTable} disabled={!selectedRuleId || !selfName || isSaving} onPress={startGame} style={styles.startButton}>Start scoring</Button>
-        {(!selectedRuleId || !selfName) && <Text style={styles.cardCopy}>Choose a scoring sheet and enter your player name to start.</Text>}
+        <Button mode="contained" icon="play" loading={isSaving || isCreatingTable} disabled={!selectedRuleId || !selfName || isSaving} onPress={startGame} style={styles.startButton}>Empezar partida</Button>
+        {(!selectedRuleId || !selfName) && <Text style={styles.cardCopy}>Elegí una planilla e ingresá tu nombre para empezar.</Text>}
       </ScrollView>
     </SafeAreaView>
   );

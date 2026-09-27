@@ -22,79 +22,79 @@ export default function GameRulesScreen() {
 
   const loadRules = useCallback(async () => {
     if (!Number.isSafeInteger(id) || id <= 0) {
-      setError('Invalid game ID.');
+      setError('El ID del juego no es válido.');
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try { setRules(await api.getGameRules(id)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not load BGG rules discussions.'); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No pudimos cargar las conversaciones de BGG.'); }
     finally { setLoading(false); }
   }, [id]);
 
   useEffect(() => {
     let active = true;
-    const request = Number.isSafeInteger(id) && id > 0 ? api.getGameRules(id) : Promise.reject(new Error('Invalid game ID.'));
+    const request = Number.isSafeInteger(id) && id > 0 ? api.getGameRules(id) : Promise.reject(new Error('El ID del juego no es válido.'));
     request
       .then((result) => { if (active) setRules(result); })
-      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Could not load BGG rules discussions.'); })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'No pudimos cargar las conversaciones de BGG.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [id]);
 
   async function openURL(url: string) {
     try { await Linking.openURL(url); }
-    catch { setError('Could not open BoardGameGeek on this device.'); }
+    catch { setError('No pudimos abrir BoardGameGeek en este dispositivo.'); }
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>GAME RULES</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>{name || 'Game rules'}</Text>
-        <Text style={styles.subtitle}>Explore rule questions and answers from the BoardGameGeek community.</Text>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>REGLAS DEL JUEGO</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>{name || 'Reglas del juego'}</Text>
+        <Text style={styles.subtitle}>Explorá preguntas y respuestas sobre reglas en BoardGameGeek.</Text>
 
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>{gameSheets.length ? `${gameSheets.length} scoring sheet${gameSheets.length === 1 ? '' : 's'} saved` : 'No scoring sheet for this game yet'}</Text>
-          {gameSheets.map((sheet) => <Text key={sheet.id} style={styles.emptyCopy}>{sheet.name} · {sheet.fields.length} fields</Text>)}
-          {gameSheets.length > 0 && <Button mode="contained" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: gameSheets[0].id } })}>Start scoring</Button>}
-          <Button mode="contained" icon="table-edit" onPress={() => router.push({ pathname: '/rules/new', params: { gameId: String(id), game: String(name ?? '') } })}>Create scoring sheet</Button>
-          <Button mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Upload PDF rulebook</Button>
-          <Button mode="outlined" icon="image-search-outline" onPress={() => router.push({ pathname: '/images/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Read points table image</Button>
-          <Button mode="outlined" icon="account-group-outline" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })}>Find community scoring rules</Button>
-          {savedPDF && <Text style={styles.emptyCopy}>Saved rulebook: {savedPDF.document.fileName}</Text>}
+          <Text style={styles.emptyTitle}>{gameSheets.length ? `${gameSheets.length} ${gameSheets.length === 1 ? 'planilla guardada' : 'planillas guardadas'}` : 'Este juego todavía no tiene planilla'}</Text>
+          {gameSheets.map((sheet) => <Text key={sheet.id} style={styles.emptyCopy}>{sheet.name} · {sheet.fields.length} campos</Text>)}
+          {gameSheets.length > 0 && <Button mode="contained" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: gameSheets[0].id } })}>Empezar partida</Button>}
+          <Button mode="contained" icon="table-edit" onPress={() => router.push({ pathname: '/rules/new', params: { gameId: String(id), game: String(name ?? '') } })}>Crear planilla</Button>
+          <Button mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Subir reglamento en PDF</Button>
+          <Button mode="outlined" icon="image-search-outline" onPress={() => router.push({ pathname: '/images/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Leer tabla de puntos</Button>
+          <Button mode="outlined" icon="account-group-outline" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })}>Buscar planillas de la comunidad</Button>
+          {savedPDF && <Text style={styles.emptyCopy}>Reglamento guardado: {savedPDF.document.fileName}</Text>}
         </View>
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}><MaterialCommunityIcons name="forum-outline" size={27} color={colors.forest} /></View>
           <Text style={styles.summaryCount}>{rules?.status === 'ready' ? rules.totalThreads : '—'}</Text>
-          <Text style={styles.summaryLabel}>RULES DISCUSSIONS</Text>
-          <Text style={styles.summaryCopy}>Community conversations can clarify tricky situations. Check the rulebook for official rules.</Text>
+          <Text style={styles.summaryLabel}>CONVERSACIONES SOBRE REGLAS</Text>
+          <Text style={styles.summaryCopy}>La comunidad puede aclarar dudas. Consultá el reglamento para confirmar las reglas oficiales.</Text>
         </View>
 
-        <Button mode="outlined" icon="file-document-outline" onPress={() => openURL(`https://boardgamegeek.com/boardgame/${id}/files`)}>See rulebooks and files on BGG</Button>
+        <Button mode="outlined" icon="file-document-outline" onPress={() => openURL(`https://boardgamegeek.com/boardgame/${id}/files`)}>Ver reglamentos y archivos en BGG</Button>
 
-        <View style={styles.sectionHeader}><Text style={styles.eyebrow}>RULES FORUM</Text><Text variant="headlineSmall" style={styles.heading}>Discussions</Text></View>
+        <View style={styles.sectionHeader}><Text style={styles.eyebrow}>FORO DE REGLAS</Text><Text variant="headlineSmall" style={styles.heading}>Conversaciones</Text></View>
         {loading ? <ActivityIndicator size="large" style={styles.loader} /> : rules?.status === 'processing' ? (
-          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>BGG is preparing this forum</Text><Text style={styles.emptyCopy}>Try again in {rules.retryAfterSeconds ?? 5} seconds.</Text><Button mode="contained" onPress={loadRules}>Try again</Button></View>
+          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>BGG está preparando este foro</Text><Text style={styles.emptyCopy}>Reintentá en {rules.retryAfterSeconds ?? 5} segundos.</Text><Button mode="contained" onPress={loadRules}>Reintentar</Button></View>
         ) : error ? (
-          <View style={styles.emptyCard}><Text style={styles.error}>{error}</Text><Button mode="contained" onPress={loadRules}>Try again</Button></View>
+          <View style={styles.emptyCard}><Text style={styles.error}>{error}</Text><Button mode="contained" onPress={loadRules}>Reintentar</Button></View>
         ) : rules?.threads.length ? (
           <>
             {rules.threads.slice(0, 20).map((thread) => (
               <Pressable key={thread.id} accessibilityRole="link" onPress={() => openURL(thread.url)} style={styles.threadCard}>
                 <View style={styles.threadIcon}><MaterialCommunityIcons name="comment-question-outline" size={22} color={colors.forest} /></View>
-                <View style={styles.threadBody}><Text style={styles.threadTitle}>{thread.title}</Text><Text style={styles.threadMeta}>by {thread.author} · {thread.posts} posts</Text></View>
+                <View style={styles.threadBody}><Text style={styles.threadTitle}>{thread.title}</Text><Text style={styles.threadMeta}>por {thread.author} · {thread.posts} publicaciones</Text></View>
                 <MaterialCommunityIcons name="open-in-new" size={18} color={colors.muted} />
               </Pressable>
             ))}
-            {!!rules.forumUrl && <Button mode="text" icon="open-in-new" onPress={() => openURL(rules.forumUrl!)}>Browse all {rules.totalThreads} discussions on BGG</Button>}
+            {!!rules.forumUrl && <Button mode="text" icon="open-in-new" onPress={() => openURL(rules.forumUrl!)}>Ver las {rules.totalThreads} conversaciones en BGG</Button>}
           </>
         ) : (
-          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>No rules discussions yet</Text><Text style={styles.emptyCopy}>You can still check the game&apos;s files for a rulebook.</Text></View>
+          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>Todavía no hay conversaciones</Text><Text style={styles.emptyCopy}>Podés consultar los archivos del juego para encontrar un reglamento.</Text></View>
         )}
-        <Text style={styles.attribution}>Forum titles and links from BoardGameGeek.</Text>
+        <Text style={styles.attribution}>Títulos y enlaces del foro de BoardGameGeek.</Text>
       </ScrollView>
     </SafeAreaView>
   );
