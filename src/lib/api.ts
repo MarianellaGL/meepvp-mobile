@@ -24,7 +24,8 @@ export type APIHealth = { status: 'ok' };
 
 export type RulesThread = { id: number; title: string; author: string; posts: number; url: string };
 export type GameRules = { status: 'ready' | 'processing'; retryAfterSeconds?: number; forumUrl?: string; totalThreads: number; threads: RulesThread[] };
-export type PDFExtract = { fileName: string; pages: number; text: string; scoringExcerpts: string[] };
+export type ScoringSuggestion = { gameName: string; fields: { name: string; kind: FieldKind; pointsPerUnit: number }[]; notes: string[] };
+export type PDFExtract = { fileName: string; pages: number; text: string; scoringExcerpts: string[]; scoringSuggestion?: ScoringSuggestion };
 
 export type AnonymousTable = {
   code: string;

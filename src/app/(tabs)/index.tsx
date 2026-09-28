@@ -50,7 +50,7 @@ export default function DashboardScreen() {
         <View style={styles.brand}>
           <View style={styles.brandMark}><MaterialCommunityIcons name="dice-multiple" color={colors.canvas} size={22} /></View>
           <View>
-            <Text style={styles.brandName}>MeepVP</Text>
+            <Text style={styles.brandName}>MeppVP</Text>
             <Text style={styles.brandTag}>TU MESA, TUS REGLAS</Text>
           </View>
         </View>

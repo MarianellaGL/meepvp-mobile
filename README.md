@@ -1,6 +1,6 @@
-# MeepVP Mobile
+# MeppVP Mobile
 
-Aplicación Expo SDK 57 para llevar puntuaciones de juegos de mesa, compartir planillas y consultar ganadores y estadísticas. Usa `@decodadev02/scoreui` y la [API de MeepVP](https://github.com/MarianellaGL/meepvp-api).
+Aplicación Expo SDK 57 para llevar puntuaciones de juegos de mesa, compartir planillas y consultar ganadores y estadísticas. Usa `@decodadev02/scoreui` y la [API de MeppVP](https://github.com/MarianellaGL/meepvp-api).
 
 ## Ejecutar en local
 
@@ -50,11 +50,16 @@ Las cuentas usan nombre de usuario y contraseña. La inscripción pide confirmar
 
 El token del anfitrión y la última partida quedan en el dispositivo. La colección, las planillas y el texto extraído de PDF tienen copias locales para consultar sin conexión. La API guarda planillas y partidas en PostgreSQL y no conserva el PDF original.
 
-Compartir una planilla con la comunidad requiere iniciar sesión y marca `isPublic: true`. Las planillas sin esa marca no aparecen en la búsqueda de la comunidad, pero `GET /v1/scoring-rules` actualmente las devuelve a cualquiera con acceso a la API: son no listadas, no confidenciales. Todavía no hay moderación de publicaciones ni recuperación de contraseñas.
+Compartir una planilla con la comunidad requiere iniciar sesión y marca `isPublic: true`. Las planillas sin esa marca no aparecen en la búsqueda de la comunidad, pero `GET /v1/scoring-rules` actualmente las devuelve a cualquiera con acceso a la API: son no listadas, no confidenciales. Todavía no hay moderación de publicaciones. El backend incorpora autenticación por email, OAuth y recuperación de contraseña de Foundation; esta app conserva el acceso por usuario de `/v1`, cuyas cuentas antiguas no tienen email para recuperación.
+
+## Importar reglamentos
+
+El lector conserva la extracción de tablas impresas y acepta propuestas revisadas del backend para los reglamentos base en inglés de Everdell y Catan. Everdell precarga cinco categorías de puntos finales. Catan precarga contadores de poblados, ciudades y cartas de victoria, y marcas para los dos bonos. Podés revisar y editar los campos antes de guardar la planilla. Las notas explican los desempates de Everdell y la victoria de Catan en el propio turno: la app todavía no los automatiza. Las expansiones y el modo solitario se revisan manualmente. Para PDFs guardados antes de esta actualización, elegí nuevamente el archivo para recibir la propuesta.
 
 ## Verificaciones
 
 ```sh
 npx expo lint
 npx tsc --noEmit
+node --test tests/scoringDraft.test.cjs
 ```

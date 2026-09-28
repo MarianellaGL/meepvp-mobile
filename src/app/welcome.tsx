@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.mark}><MaterialCommunityIcons name="dice-multiple" size={38} color={colors.canvas} /></View>
-        <Text style={styles.brand}>MeepVP</Text>
+        <Text style={styles.brand}>MeppVP</Text>
         <Text style={styles.title}>Tu partida empieza acá.</Text>
         <Text style={styles.copy}>Llevá los puntos, compartí planillas y descubrí quién ganó. Elegí cómo querés entrar.</Text>
 

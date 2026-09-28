@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MeepVP",
+    "name": "MeppVP",
     "slug": "meepvp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,7 +21,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-notifications", ["expo-image-picker", { "photosPermission": "Permitir que MeepVP lea una imagen de puntuación elegida por vos.", "cameraPermission": "Permitir que MeepVP fotografíe una tabla de puntuación.", "microphonePermission": false }], ["expo-camera", { "cameraPermission": "Permitir que MeepVP escanee el QR de una mesa.", "recordAudioAndroid": false, "barcodeScannerEnabled": true }]],
+    "plugins": ["expo-router", "expo-notifications", ["expo-image-picker", { "photosPermission": "Permitir que MeppVP lea una imagen de puntuación elegida por vos.", "cameraPermission": "Permitir que MeppVP fotografíe una tabla de puntuación.", "microphonePermission": false }], ["expo-camera", { "cameraPermission": "Permitir que MeppVP escanee el QR de una mesa.", "recordAudioAndroid": false, "barcodeScannerEnabled": true }]],
     "scheme": "meepvp"
   }
 }

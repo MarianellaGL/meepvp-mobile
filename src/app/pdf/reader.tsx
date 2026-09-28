@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, type PDFExtract } from '@/lib/api';
 import { extractScoringTable } from '@/lib/scoringTable';
+import { extractScoringDraft } from '@/lib/scoringDraft';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
@@ -33,6 +34,7 @@ export default function PDFReaderScreen() {
   const savedDocument = savedPDFs.find((item) => resolvedGameId ? item.gameId === resolvedGameId : item.gameName.toLocaleLowerCase() === name.toLocaleLowerCase())?.document;
   const activeDocument = document ?? (replacingDocument ? null : savedDocument) ?? null;
   const scoringTable = activeDocument ? extractScoringTable(activeDocument) : null;
+  const scoringDraft = activeDocument ? extractScoringDraft(activeDocument) : null;
 
   async function saveCurrentPDF(pdf: PDFExtract) {
     if (!name) throw new Error('Ingresá el nombre del juego para guardar este PDF.');
@@ -78,6 +80,7 @@ export default function PDFReaderScreen() {
       setLoading(true);
       const result = await api.extractPDF(asset);
       setDocument(result);
+      if (!name && result.scoringSuggestion?.gameName) setGameNameDraft(result.scoringSuggestion.gameName);
       setPDFDraft(result);
       setShowFullText(false);
       if (name) {
@@ -97,7 +100,7 @@ export default function PDFReaderScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE REGLAMENTOS</Text><View style={styles.topSpacer} /></View>
         <Text style={styles.title}>Leer un reglamento</Text>
-        <Text style={styles.subtitle}>Elegí un PDF. Si contiene una tabla de puntos, armaremos sus categorías para crear la planilla.</Text>
+        <Text style={styles.subtitle}>Elegí un PDF. Podemos importar tablas de puntos y proponer planillas para los reglamentos base de Everdell y Catan.</Text>
 
         <View style={styles.card}>
           <TextInput label="Nombre del juego" value={gameNameDraft} onChangeText={(value) => { setGameNameDraft(value); setSavedStatus(null); }} mode="outlined" />
@@ -112,7 +115,13 @@ export default function PDFReaderScreen() {
         {savedStatus && <Text style={styles.saved}>{savedStatus}</Text>}
         {activeDocument && !loading && (
           <>
-            {scoringTable ? <>
+            {activeDocument.scoringSuggestion && scoringDraft ? <View style={styles.card}>
+              <Text style={styles.heading}>Propuesta para {scoringDraft.gameName}</Text>
+              {scoringDraft.fields.map((field) => <Text key={field.name} style={styles.bodyText}>
+                {field.name}: {field.kind === 'manual' ? 'puntaje final de la categoría' : `${field.pointsPerUnit} punto${field.pointsPerUnit === 1 ? '' : 's'} ${field.kind === 'checkbox' ? 'si tenés el bono' : 'por unidad'}`}
+              </Text>)}
+              {scoringDraft.notes.map((note) => <Text key={note} style={styles.muted}>{note}</Text>)}
+            </View> : scoringTable ? <>
               <Text style={styles.heading}>Tabla de puntuación</Text>
               <Text style={styles.muted}>{scoringTable.categories.length} categorías detectadas. Podés corregirlas al crear la planilla. Cada jugador cargará sus puntos cuando se una a la partida.</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tableScroll}>
@@ -142,7 +151,7 @@ export default function PDFReaderScreen() {
             <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar el PDF.')).finally(() => setSaving(false)); }}>Guardar PDF en biblioteca</Button>
             <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>Crear planilla</Button>
             {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el PDF o crear una planilla.</Text>}
-            <Text style={styles.muted}>{scoringTable ? 'Las categorías se cargarán en la planilla para que las revises antes de empezar una partida.' : 'Revisá el reglamento antes de agregar campos y puntos.'}</Text>
+            <Text style={styles.muted}>{scoringDraft ? 'Los campos se cargarán en la planilla para que los revises antes de empezar una partida.' : 'Revisá el reglamento antes de agregar campos y puntos.'}</Text>
           </>
         )}
       </ScrollView>

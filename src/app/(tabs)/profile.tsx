@@ -36,7 +36,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.nameCard}>
-          <Text style={styles.featureTitle}>Cuenta MeepVP</Text>
+          <Text style={styles.featureTitle}>Cuenta MeppVP</Text>
           {isRestoring ? <Text style={styles.featureCopy}>Recuperando tu cuenta…</Text> : user ? (
             <>
               <Text style={styles.featureCopy}>Sesión iniciada como @{user.username}. Tus estadísticas solo aparecen en esta cuenta.</Text>
