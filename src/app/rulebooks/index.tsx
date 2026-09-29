@@ -77,7 +77,7 @@ export default function RulebookCatalogScreen() {
         <Text style={styles.copy}>Confirmá que sea el juego base o la expansión que vas a jugar.</Text>
         <Button mode="outlined" icon="file-pdf-box" loading={importing === book.id} disabled={!!importing || loading} onPress={() => importBook(book)}>Leer y crear planilla</Button>
       </View>)}
-      <Text style={styles.copy}>Catan y Everdell base tienen propuestas revisadas. Otros reglamentos permiten detectar tablas o configurar los campos manualmente usando el texto extraído.</Text>
+      <Text style={styles.copy}>Catan, Everdell y Wingspan base tienen propuestas revisadas. Otros reglamentos permiten detectar tablas o configurar los campos manualmente usando el texto extraído.</Text>
     </ScrollView>
   </SafeAreaView>;
 }

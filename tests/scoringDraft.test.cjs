@@ -43,3 +43,26 @@ test('rejects incomplete suggestions and leaves unsupported prose for manual rev
   assert.equal(extractScoringDraft(document), null);
   assert.equal(extractScoringDraft({ ...document, scoringSuggestion: { gameName: 'Catan', fields: [{}], notes: [] } }), null);
 });
+
+
+test('imports Wingspan points separately from eggs, cached food and tucked cards', () => {
+  const suggestion = {
+    gameName: 'Wingspan',
+    fields: [
+      { name: 'Aves: puntos impresos', kind: 'manual', pointsPerUnit: 0 },
+      { name: 'Cartas de bonificación', kind: 'manual', pointsPerUnit: 0 },
+      { name: 'Objetivos de fin de ronda', kind: 'manual', pointsPerUnit: 0 },
+      { name: 'Huevos sobre aves', kind: 'counter', pointsPerUnit: 1 },
+      { name: 'Alimento almacenado sobre aves', kind: 'counter', pointsPerUnit: 1 },
+      { name: 'Cartas debajo de aves', kind: 'counter', pointsPerUnit: 1 },
+    ],
+    notes: ['El alimento sin usar resuelve el desempate en la mesa.'],
+  };
+  const draft = extractScoringDraft({ ...document, scoringSuggestion: suggestion });
+  assert.deepEqual(draft, suggestion);
+  // A 66-point scorepad must retain manual totals, without counting each card
+  // or converting a printed example into a multiplier.
+  const values = [30, 8, 12, 7, 4, 5];
+  const total = draft.fields.reduce((sum, field, index) => sum + (field.kind === 'manual' ? values[index] : values[index] * field.pointsPerUnit), 0);
+  assert.equal(total, 66);
+});

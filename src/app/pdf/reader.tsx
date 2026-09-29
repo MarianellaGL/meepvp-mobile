@@ -102,7 +102,7 @@ export default function PDFReaderScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE REGLAMENTOS</Text><View style={styles.topSpacer} /></View>
         <Text style={styles.title}>Leer un reglamento</Text>
-        <Text style={styles.subtitle}>Elegí un PDF. Podemos importar tablas de puntos y proponer planillas para los reglamentos base de Everdell y Catan.</Text>
+        <Text style={styles.subtitle}>Elegí un PDF. Podemos importar tablas de puntos y proponer planillas para los reglamentos base de Everdell, Catan y Wingspan.</Text>
         {activeDocument?.rulebook && <Text style={styles.muted}>Fuente: {activeDocument.rulebook.source} · {activeDocument.rulebook.language.toUpperCase()} · {activeDocument.rulebook.name}</Text>}
 
         <View style={styles.card}>

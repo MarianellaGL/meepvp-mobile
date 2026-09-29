@@ -73,8 +73,8 @@ Compartir una planilla con la comunidad requiere iniciar sesión y marca `isPubl
 
 Desde **Biblioteca → Buscar reglamentos**, buscá un juego en inglés o francés,
 elegí el juego base o la expansión correcta y tocá **Leer y crear planilla**.
-La API consulta rule-book.org y conserva sus metadatos en PostgreSQL; Catan y
-Everdell en inglés están disponibles desde la migración inicial del catálogo.
+La API consulta rule-book.org y conserva sus metadatos en PostgreSQL; Catan, Everdell y
+Wingspan en inglés están disponibles desde la migración inicial del catálogo.
 Si el proveedor falla, devuelve coincidencias guardadas e indica que son una
 copia local. No necesita el token de BGG. Una búsqueda sin coincidencias guardadas
 puede fallar si el proveedor no responde.
@@ -89,7 +89,7 @@ migración del catálogo. Otros reglamentos se completan con tablas detectadas o
 campos manuales; no hay inferencia general por IA.
 
 
-El lector conserva la extracción de tablas impresas y acepta propuestas revisadas del backend para los reglamentos base en inglés de Everdell y Catan. Everdell precarga cinco categorías de puntos finales. Catan precarga contadores de poblados, ciudades y cartas de victoria, y marcas para los dos bonos. Podés revisar y editar los campos antes de guardar la planilla. Las notas explican los desempates de Everdell y la victoria de Catan en el propio turno: la app todavía no los automatiza. Las expansiones y el modo solitario se revisan manualmente. Para PDFs guardados antes de esta actualización, elegí nuevamente el archivo para recibir la propuesta.
+El lector conserva la extracción de tablas impresas y acepta propuestas revisadas del backend para los reglamentos base en inglés de Everdell, Catan y Wingspan. Everdell precarga cinco categorías de puntos finales. Catan precarga contadores de poblados, ciudades y cartas de victoria, y marcas para los dos bonos. Podés revisar y editar los campos antes de guardar la planilla. Las notas explican los desempates de Everdell y la victoria de Catan en el propio turno: la app todavía no los automatiza. Las expansiones y el modo solitario se revisan manualmente. Para PDFs guardados antes de esta actualización, elegí nuevamente el archivo para recibir la propuesta.
 
 ## Verificaciones
 
@@ -98,3 +98,13 @@ npx expo lint
 npx tsc --noEmit
 node --test tests/scoringDraft.test.cjs
 ```
+
+Wingspan base precarga seis categorías: aves, bonificaciones y objetivos de ronda
+como puntos finales; huevos, alimento almacenado sobre aves y cartas debajo de
+aves como contadores de un punto por unidad. No cuentan el alimento de la reserva
+ni las cartas en mano. Los objetivos de ronda se cargan según el tablero elegido;
+el desempate final por alimento sin usar se revisa en la mesa. La propuesta no
+incluye expansiones, Automa ni modo Dúo.
+
+Las próximas mecánicas de anulación de puntos y modo duelo están anotadas en el
+[backlog de producto](https://github.com/MarianellaGL/meepvp-api/blob/main/PRODUCT_BACKLOG.md).
