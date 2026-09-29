@@ -4,6 +4,18 @@ Aplicación Expo SDK 57 para llevar puntuaciones de juegos de mesa, compartir pl
 
 ## Ejecutar en local
 
+Para usar la API desplegada en Render, configurá `EXPO_PUBLIC_API_URL` en `.env`
+con la URL HTTPS pública del servicio, sin `/docs` ni `/v1`. La app agrega las
+rutas correspondientes. No necesita credenciales de Neon ni `DATABASE_URL`.
+Después de cambiar la URL, recargá completamente la app; si Expo sigue abierto,
+reinicialo con `npx expo start --clear`.
+
+La URL se incluye en el bundle de Expo. Las compilaciones distribuidas necesitan
+esa misma variable configurada en su entorno de build. La dirección de la API
+es pública y visible en el bundle y el tráfico de red; no es una credencial.
+El archivo `.env` queda fuera de Git. Cambiar `.env` después de compilar no
+actualiza una app ya instalada.
+
 1. Iniciá PostgreSQL y la API siguiendo el README del repositorio de la API.
 2. Copiá `.env.example` a `.env` y configurá `EXPO_PUBLIC_API_URL`. En un celular físico usá la IP local de tu computadora: `localhost` apunta al celular.
 3. Instalá las dependencias e iniciá Expo:

@@ -47,7 +47,7 @@ export type AuthSession = { user: AccountUser; token: string };
 export type AccountStats = { finishedGames: number; wins: number; ties: number; totalPoints: number };
 export type AccountGameSession = ScoreSession & { gameName: string; myPlayerId: string };
 
-export const baseURL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+export const baseURL = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '') || 'http://localhost:8080';
 let authToken: string | null = null;
 export function setAuthToken(token: string | null) { authToken = token; }
 export class APIRequestError extends Error {
@@ -73,10 +73,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...options?.headers },
   });
-  const body = (await response.json()) as T & { error?: string };
+  const body = await response.json().catch(() => null) as (T & { error?: string }) | null;
   if (!response.ok && response.status !== 202) {
-    throw new APIRequestError(apiErrorMessage(body.error, response.status), response.status);
+    throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status);
   }
+  if (body === null) throw new APIRequestError('El servidor devolvió una respuesta inválida. Reintentá en unos minutos.', response.status);
   return body;
 }
 
@@ -108,7 +109,7 @@ export const api = {
       if (apiReachable) {
         throw new Error('La API responde, pero no pudimos enviar el PDF. Probá con otro archivo o reintentá.');
       }
-      throw new Error(`No pudimos conectar con la API en ${baseURL}. Revisá la red del dispositivo.`);
+      throw new Error('No pudimos conectar con el servidor. Revisá la red del dispositivo.');
     }
     const body = await response.json().catch(() => null) as (PDFExtract & { error?: string }) | null;
     if (!response.ok) throw new Error(apiErrorMessage(body?.error, response.status));
