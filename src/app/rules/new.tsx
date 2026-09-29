@@ -33,6 +33,7 @@ export default function NewRuleScreen() {
   async function saveRule() {
     if (!gameName.trim() || fields.some((field) => !field.name.trim())) return;
     const rule: CreateScoringRule = {
+      ...(fromPdf === '1' && pdfDraft?.rulebook ? { rulebookId: pdfDraft.rulebook.id } : {}),
       ...(Number.isSafeInteger(Number(gameId)) && Number(gameId) > 0 ? { bggId: Number(gameId) } : {}),
       gameName: gameName.trim(),
       name: name.trim() || 'Puntuación estándar',

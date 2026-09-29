@@ -1,4 +1,4 @@
-import { ScoreBottomNav, type ScoreTab } from '@decodadev02/scoreui';
+import { AppBottomNav, type AppTab } from '@/components/AppBottomNav';
 import { Tabs, router } from 'expo-router';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
@@ -7,9 +7,9 @@ export default function TabLayout() {
   const table = useTableScoreStore((state) => state.table);
   const session = useTableScoreStore((state) => state.session);
 
-  function select(tab: ScoreTab) {
+  function select(tab: AppTab) {
     if (tab === 'home') router.navigate('/');
-    else if (tab === 'history') router.navigate('/history');
+    else if (tab === 'library') router.navigate('/library');
     else if (tab === 'profile') router.navigate('/profile');
     else if (tab === 'new-game') router.push(table ? '/sessions/new' : '/');
     else if (session) router.push(`/sessions/${session.id}`);
@@ -21,12 +21,11 @@ export default function TabLayout() {
       screenOptions={{ headerShown: false }}
       tabBar={({ state }) => {
         const route = state.routes[state.index]?.name;
-        const active: ScoreTab = route === 'history' ? 'history' : route === 'profile' ? 'profile' : route === 'tables' ? 'score' : 'home';
-        return <ScoreBottomNav active={active} onSelect={select} />;
+        const active: AppTab = route === 'library' ? 'library' : route === 'profile' ? 'profile' : route === 'tables' ? 'score' : 'home';
+        return <AppBottomNav active={active} onSelect={select} />;
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Inicio' }} />
-      <Tabs.Screen name="history" options={{ title: 'Historial' }} />
       <Tabs.Screen name="profile" options={{ title: 'Perfil' }} />
       <Tabs.Screen name="library" options={{ title: 'Biblioteca' }} />
       <Tabs.Screen name="tables" options={{ title: 'Mesas' }} />

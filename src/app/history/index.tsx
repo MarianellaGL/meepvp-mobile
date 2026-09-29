@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { ScoreGameCard } from '@decodadev02/scoreui';
 import { router, useFocusEffect } from 'expo-router';
-import { Text } from 'react-native-paper';
+import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
@@ -28,7 +28,10 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>NOCHES DE JUEGOS</Text>
+        <View style={styles.topRow}>
+          <IconButton icon="arrow-left" accessibilityLabel="Volver al perfil" onPress={() => router.canGoBack() ? router.back() : router.replace('/profile')} />
+          <Text style={styles.eyebrow}>NOCHES DE JUEGOS</Text>
+        </View>
         <Text style={styles.title}>Historial</Text>
         <Text style={styles.subtitle}>{account ? 'Tus partidas terminadas y estadísticas de esta cuenta.' : 'Tu última partida terminada, guardada en este dispositivo.'}</Text>
         {account ? accountSessions.filter((game) => game.status === 'finished').map((game) => {
@@ -60,6 +63,7 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { gap: 14, padding: 20, paddingBottom: 36 },
+  topRow: { flexDirection: 'row', alignItems: 'center', marginLeft: -12 },
   eyebrow: { color: colors.forest, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginTop: 10 },
   title: { color: colors.ink, fontSize: 34, fontWeight: '800' },
   subtitle: { color: colors.muted, fontSize: 14, lineHeight: 21 },

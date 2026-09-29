@@ -69,6 +69,11 @@ export default function LibraryScreen() {
               <View style={styles.bannerText}><Text style={styles.bannerTitle}>Leer tabla de puntos</Text><Text style={styles.bannerCopy}>Usá una foto o captura para crear un borrador.</Text></View>
               <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
             </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Buscar reglamentos por juego" onPress={() => router.push('/rulebooks')} style={[styles.banner, styles.communityBanner]}>
+              <View style={styles.bannerIcon}><MaterialCommunityIcons name="book-search-outline" size={25} color={colors.forest} /></View>
+              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Buscar reglamentos</Text><Text style={styles.bannerCopy}>Elegí un juego, leé su reglamento y armá una planilla.</Text></View>
+              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
+            </Pressable>
             <View style={styles.listHeading}>
               <Text variant="titleMedium" style={styles.listTitle}>Planillas guardadas</Text>
               <Text style={styles.count}>{rules.length} total</Text>

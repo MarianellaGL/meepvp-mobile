@@ -31,6 +31,10 @@ El lector de imágenes usa `expo-text-extractor` y necesita una compilación nat
 
 ## Flujo de juego
 
+El menú inferior muestra Inicio, Biblioteca, Nueva partida, Puntuar y Perfil.
+El historial se abre desde **Perfil → Historial de partidas**, con regreso al perfil.
+
+
 Al abrir la app se puede registrar una cuenta, iniciar sesión, continuar sin cuenta o unirse a una partida. Para unirse se escanea el QR de una partida activa o se ingresa el código de seis caracteres junto con el nombre del jugador. El QR contiene un enlace `meepvp://join?code=...`; el enlace directo requiere que la app esté instalada. La API resuelve ese código a la partida activa. Una partida terminada no genera QR y su código ya no permite unirse; aparece en Historial. El anfitrión puede finalizarla y la API devuelve el ganador o todos los jugadores empatados según la regla de puntuación.
 
 El anfitrión puede pausar una partida larga y reanudarla días después. El contador muestra el tiempo realmente jugado, sin contar la pausa. Mientras está pausada, los puntos quedan bloqueados y la partida sigue visible en Inicio y Mesas. Se puede sacar o elegir una foto del tablero para retomarlo luego desde otro dispositivo; la API guarda la última foto, con límite de 5 MB. Quienes tengan el enlace de la partida pueden verla.
@@ -48,6 +52,7 @@ La biblioteca consulta las planillas guardadas en la base de datos cada vez que 
 | Colección y conversaciones de BoardGameGeek | `GET /v1/bgg/collections/{username}`, `/v1/bgg/games/{gameID}/rules` |
 | Listar y crear planillas | `GET/POST /v1/scoring-rules` |
 | Buscar planillas compartidas | `GET /v1/community/scoring-rules` |
+| Buscar y leer reglamentos del catálogo | `GET /v1/rulebooks`, `POST /v1/rulebooks/{id}/extract` |
 | Extraer texto de PDF | `POST /v1/pdf/extract` |
 | Crear mesa y partida | `POST /v1/tables`, `/v1/tables/{code}/sessions` |
 | Resolver el código de una partida activa | `GET /v1/tables/{code}/current-session` |
@@ -65,6 +70,24 @@ El token del anfitrión y la última partida quedan en el dispositivo. La colecc
 Compartir una planilla con la comunidad requiere iniciar sesión y marca `isPublic: true`. Las planillas sin esa marca no aparecen en la búsqueda de la comunidad, pero `GET /v1/scoring-rules` actualmente las devuelve a cualquiera con acceso a la API: son no listadas, no confidenciales. Todavía no hay moderación de publicaciones. El backend incorpora autenticación por email, OAuth y recuperación de contraseña de Foundation; esta app conserva el acceso por usuario de `/v1`, cuyas cuentas antiguas no tienen email para recuperación.
 
 ## Importar reglamentos
+
+Desde **Biblioteca → Buscar reglamentos**, buscá un juego en inglés o francés,
+elegí el juego base o la expansión correcta y tocá **Leer y crear planilla**.
+La API consulta rule-book.org y conserva sus metadatos en PostgreSQL; Catan y
+Everdell en inglés están disponibles desde la migración inicial del catálogo.
+Si el proveedor falla, devuelve coincidencias guardadas e indica que son una
+copia local. No necesita el token de BGG. Una búsqueda sin coincidencias guardadas
+puede fallar si el proveedor no responde.
+
+El lector muestra la fuente junto con la propuesta. **Crear planilla** abre los
+campos editables existentes: nombres, tipos, puntos por unidad y condición de
+victoria. Revisá y corregí la propuesta; recién al guardar se crea la planilla
+persistente con su `rulebookId`, que luego podés usar en una partida. El texto
+extraído queda en la biblioteca del dispositivo; el servidor no guarda el PDF.
+Este flujo requiere desplegar la nueva versión de la API para aplicar la
+migración del catálogo. Otros reglamentos se completan con tablas detectadas o
+campos manuales; no hay inferencia general por IA.
+
 
 El lector conserva la extracción de tablas impresas y acepta propuestas revisadas del backend para los reglamentos base en inglés de Everdell y Catan. Everdell precarga cinco categorías de puntos finales. Catan precarga contadores de poblados, ciudades y cartas de victoria, y marcas para los dos bonos. Podés revisar y editar los campos antes de guardar la planilla. Las notas explican los desempates de Everdell y la victoria de Catan en el propio turno: la app todavía no los automatiza. Las expansiones y el modo solitario se revisan manualmente. Para PDFs guardados antes de esta actualización, elegí nuevamente el archivo para recibir la propuesta.
 

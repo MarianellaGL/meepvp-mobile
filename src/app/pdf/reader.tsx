@@ -14,7 +14,7 @@ import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 
 export default function PDFReaderScreen() {
-  const { gameId, game } = useLocalSearchParams<{ gameId?: string; game?: string }>();
+  const { gameId, game, rulebookId } = useLocalSearchParams<{ gameId?: string; game?: string; rulebookId?: string }>();
   const [document, setDocument] = useState<PDFExtract | null>(null);
   const [loading, setLoading] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
@@ -28,11 +28,13 @@ export default function PDFReaderScreen() {
   const savedPDFs = useTableScoreStore((state) => state.savedPDFs);
   const savePDF = useTableScoreStore((state) => state.savePDF);
   const setPDFDraft = useTableScoreStore((state) => state.setPDFDraft);
+  const pdfDraft = useTableScoreStore((state) => state.pdfDraft);
   const name = gameNameDraft.trim();
   const matchedGame = collection.find((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
   const resolvedGameId = Number(gameId) > 0 ? Number(gameId) : matchedGame?.bggId;
   const savedDocument = savedPDFs.find((item) => resolvedGameId ? item.gameId === resolvedGameId : item.gameName.toLocaleLowerCase() === name.toLocaleLowerCase())?.document;
-  const activeDocument = document ?? (replacingDocument ? null : savedDocument) ?? null;
+  const catalogDocument = rulebookId && pdfDraft?.rulebook?.id === rulebookId ? pdfDraft : null;
+  const activeDocument = document ?? (replacingDocument ? null : catalogDocument ?? savedDocument) ?? null;
   const scoringTable = activeDocument ? extractScoringTable(activeDocument) : null;
   const scoringDraft = activeDocument ? extractScoringDraft(activeDocument) : null;
 
@@ -101,6 +103,7 @@ export default function PDFReaderScreen() {
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE REGLAMENTOS</Text><View style={styles.topSpacer} /></View>
         <Text style={styles.title}>Leer un reglamento</Text>
         <Text style={styles.subtitle}>Elegí un PDF. Podemos importar tablas de puntos y proponer planillas para los reglamentos base de Everdell y Catan.</Text>
+        {activeDocument?.rulebook && <Text style={styles.muted}>Fuente: {activeDocument.rulebook.source} · {activeDocument.rulebook.language.toUpperCase()} · {activeDocument.rulebook.name}</Text>}
 
         <View style={styles.card}>
           <TextInput label="Nombre del juego" value={gameNameDraft} onChangeText={(value) => { setGameNameDraft(value); setSavedStatus(null); }} mode="outlined" />

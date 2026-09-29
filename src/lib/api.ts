@@ -25,7 +25,9 @@ export type APIHealth = { status: 'ok' };
 export type RulesThread = { id: number; title: string; author: string; posts: number; url: string };
 export type GameRules = { status: 'ready' | 'processing'; retryAfterSeconds?: number; forumUrl?: string; totalThreads: number; threads: RulesThread[] };
 export type ScoringSuggestion = { gameName: string; fields: { name: string; kind: FieldKind; pointsPerUnit: number }[]; notes: string[] };
-export type PDFExtract = { fileName: string; pages: number; text: string; scoringExcerpts: string[]; scoringSuggestion?: ScoringSuggestion };
+export type Rulebook = { id: string; source: string; sourceId: string; name: string; language: 'en' | 'fr'; edition?: string; pdfUrl: string; createdAt: string; updatedAt: string };
+export type RulebookSearch = { results: Rulebook[]; cached: boolean };
+export type PDFExtract = { fileName: string; pages: number; text: string; scoringExcerpts: string[]; scoringSuggestion?: ScoringSuggestion; rulebook?: Rulebook };
 
 export type AnonymousTable = {
   code: string;
@@ -36,7 +38,7 @@ export type AnonymousTable = {
 
 export type FieldKind = 'checkbox' | 'counter' | 'manual';
 export type ScoreField = { id: string; name: string; kind: FieldKind; pointsPerUnit: number };
-export type ScoringRule = { id: string; bggId?: number; gameName: string; name: string; winCondition: 'highest_total' | 'lowest_total'; fields: ScoreField[]; isPublic: boolean; createdAt: string };
+export type ScoringRule = { id: string; bggId?: number; rulebookId?: string; gameName: string; name: string; winCondition: 'highest_total' | 'lowest_total'; fields: ScoreField[]; isPublic: boolean; createdAt: string };
 export type CreateScoringRule = Omit<ScoringRule, 'id' | 'createdAt' | 'fields'> & { fields: Omit<ScoreField, 'id'>[] };
 export type Player = { id: string; name: string };
 export type SessionTotal = { playerId: string; total: number };
@@ -62,6 +64,9 @@ function apiErrorMessage(message: string | undefined, status: number): string {
     'host token required': 'Solo el anfitrión puede hacer eso.',
     'resource not found': 'No encontramos lo que buscabas.',
     'invalid input': 'Revisá los datos ingresados.',
+    'rulebook catalog unavailable': 'No pudimos consultar el catálogo de reglamentos. Reintentá en unos minutos.',
+    'could not download rulebook': 'No pudimos descargar ese reglamento. Reintentá o elegí otro.',
+    'could not extract rulebook PDF': 'No pudimos leer ese PDF. Podés probar con otro reglamento.',
   };
   if (message && known[message]) return known[message];
   if (status >= 500) return 'El servidor tuvo un problema. Reintentá en unos minutos.';
@@ -82,6 +87,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  searchRulebooks: (query: string, language: 'en' | 'fr' = 'en') => request<RulebookSearch>(`/v1/rulebooks?query=${encodeURIComponent(query.trim())}&language=${language}`),
+  extractRulebook: (id: string) => request<PDFExtract>(`/v1/rulebooks/${encodeURIComponent(id)}/extract`, { method: 'POST' }),
   getHealth: () => request<APIHealth>('/health'),
   signUp: (username: string, password: string) => request<AuthSession>('/v1/auth/signup', { method: 'POST', body: JSON.stringify({ username, password }) }),
   logIn: (username: string, password: string) => request<AuthSession>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
