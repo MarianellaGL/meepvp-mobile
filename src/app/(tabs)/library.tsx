@@ -74,6 +74,11 @@ export default function LibraryScreen() {
               <View style={styles.bannerText}><Text style={styles.bannerTitle}>Buscar reglamentos</Text><Text style={styles.bannerCopy}>Elegí un juego, leé su reglamento y armá una planilla.</Text></View>
               <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
             </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Buscar juegos en BoardGameGeek" onPress={() => router.push('/games')} style={[styles.banner, styles.communityBanner]}>
+              <View style={styles.bannerIcon}><MaterialCommunityIcons name="magnify" size={25} color={colors.forest} /></View>
+              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Buscar juegos en BGG</Text><Text style={styles.bannerCopy}>Encontrá juegos y fotos fuera de tu colección.</Text></View>
+              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
+            </Pressable>
             <View style={styles.listHeading}>
               <Text variant="titleMedium" style={styles.listTitle}>Planillas guardadas</Text>
               <Text style={styles.count}>{rules.length} total</Text>

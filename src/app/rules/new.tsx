@@ -11,6 +11,7 @@ import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
+import { AssistStatus } from '@/components/AssistStatus';
 
 type DraftField = { name: string; kind: FieldKind; pointsPerUnit: string };
 const emptyField = (): DraftField => ({ name: '', kind: 'checkbox', pointsPerUnit: '1' });
@@ -71,10 +72,10 @@ export default function NewRuleScreen() {
           <View style={styles.formCard}>
             <Text style={styles.sectionLabel}>DESDE {pdfDraft.fileName.toUpperCase()}</Text>
             {importedDraft ? <>
-              <Text style={styles.shareCopy}>Cargamos {importedDraft.fields.length} campos para que los revises antes de guardar{pdfDraft.scoringSuggestion?.source === 'ai' ? ' (propuesta asistida por IA)' : ''}.</Text>
+              <AssistStatus kind="ready" title={pdfDraft.scoringSuggestion?.source === 'ai' ? 'Propuesta asistida por IA' : 'Campos importados para revisar'} description={`Cargamos ${importedDraft.fields.length} campos. Confirmá cada multiplicador y modificá lo que haga falta antes de guardar.`} />
               {importedDraft.notes.map((note) => <Text key={note} style={styles.shareCopy}>{note}</Text>)}
             </> : <>
-              <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? `Usá estos fragmentos como referencia. Revisá ${fromImage === '1' ? 'la imagen' : 'el PDF'} antes de asignar puntos.` : 'No encontramos fragmentos sobre puntuación en el texto extraído.'}</Text>
+              <AssistStatus title="Armá la planilla con el texto" description={pdfDraft.scoringExcerpts.length ? `Usá estos fragmentos como referencia y revisá ${fromImage === '1' ? 'la imagen' : 'el PDF'} antes de asignar puntos.` : 'No encontramos fragmentos sobre puntuación. Agregá los campos según el reglamento.'} />
               {pdfDraft.scoringExcerpts.slice(0, 5).map((excerpt, index) => <Text key={`${index}-${excerpt.slice(0, 10)}`} style={styles.pdfExcerpt}>{excerpt}</Text>)}
             </>}
           </View>

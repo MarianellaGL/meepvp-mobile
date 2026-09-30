@@ -12,6 +12,7 @@ import { extractScoringDraft } from '@/lib/scoringDraft';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
+import { AssistStatus } from '@/components/AssistStatus';
 
 export default function PDFReaderScreen() {
   const { gameId, game, rulebookId } = useLocalSearchParams<{ gameId?: string; game?: string; rulebookId?: string }>();
@@ -126,15 +127,19 @@ export default function PDFReaderScreen() {
           <Text style={styles.muted}>Los PDF escaneados también se leen y pueden tardar un poco más. Si hay asistencia de IA, se envían fragmentos del texto extraído para proponer campos. Al guardar, conservamos el texto y la propuesta, no el archivo original.</Text>
         </View>
 
-        {loading && <View style={styles.loadingCard}><ActivityIndicator size="large" /><Text style={styles.muted}>Subiendo y leyendo {selectedFile ?? 'el PDF'}…</Text></View>}
+        {loading && <View style={styles.loadingCard}><ActivityIndicator size="large" /><Text style={styles.muted}>Leyendo {selectedFile ?? 'el PDF'} y buscando reglas de puntuación…</Text></View>}
         {error && <View style={styles.errorCard}><Text style={styles.error}>{error}</Text></View>}
         {retryAsset && !loading && <Button mode="outlined" icon="refresh" onPress={() => importAsset(retryAsset).catch(() => undefined)}>Reintentar con {retryAsset.name}</Button>}
         {savedStatus && <Text style={styles.saved}>{savedStatus}</Text>}
         {activeDocument && !loading && (
           <>
+            <AssistStatus
+              kind={scoringDraft ? 'ready' : 'manual'}
+              title={activeDocument.scoringSuggestion?.source === 'ai' ? 'Propuesta asistida por IA' : activeDocument.scoringSuggestion ? 'Planilla sugerida desde el reglamento' : scoringDraft ? 'Tabla de puntos detectada' : 'Texto listo para revisión'}
+              description={scoringDraft ? `${scoringDraft.fields.length} campos detectados. Vas a poder corregir nombres, tipos y puntos antes de guardar.` : 'No encontramos una estructura de puntos confiable. Leé los fragmentos y armá la planilla manualmente.'}
+            />
             {activeDocument.scoringSuggestion && scoringDraft ? <View style={styles.card}>
               <Text style={styles.heading}>Propuesta para {scoringDraft.gameName}</Text>
-              {activeDocument.scoringSuggestion.source === 'ai' && <Text style={styles.muted}>Propuesta asistida por IA. Confirmá los campos y puntos con el reglamento.</Text>}
               {scoringDraft.fields.map((field) => <Text key={field.name} style={styles.bodyText}>
                 {field.name}: {field.kind === 'manual' ? 'puntaje final de la categoría' : `${field.pointsPerUnit} punto${field.pointsPerUnit === 1 ? '' : 's'} ${field.kind === 'checkbox' ? 'si tenés el bono' : 'por unidad'}`}
               </Text>)}
@@ -167,7 +172,7 @@ export default function PDFReaderScreen() {
             <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Ocultar texto' : 'Leer texto extraído'}</Button>
             {showFullText && <View style={styles.card}>{activeDocument === savedDocument && savedItem?.textTruncated && <Text style={styles.muted}>La copia guardada conserva las primeras 200.000 letras del texto extraído.</Text>}<Text selectable style={styles.bodyText}>{activeDocument.text || 'No pudimos encontrar texto en este PDF.'}</Text></View>}
             <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.')).finally(() => setSaving(false)); }}>Guardar extracción en biblioteca</Button>
-            <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>Crear planilla</Button>
+            <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>{scoringDraft ? 'Revisar campos y crear planilla' : 'Crear planilla manual'}</Button>
             {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el PDF o crear una planilla.</Text>}
             <Text style={styles.muted}>{scoringDraft ? 'Los campos se cargarán en la planilla para que los revises antes de empezar una partida.' : 'Revisá el reglamento antes de agregar campos y puntos.'}</Text>
           </>
