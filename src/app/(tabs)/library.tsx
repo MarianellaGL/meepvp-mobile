@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ScoreBadge, ScoreSkeleton } from '@decodadev02/scoreui';
+import { MeepleGameTile, ScoreSkeleton } from '@decodadev02/meepleui';
 import { router, useFocusEffect } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -112,20 +112,15 @@ export default function LibraryScreen() {
             <Button mode="contained" icon="download" onPress={() => router.navigate('/')}>Ir a importar</Button>
           </View>
         }
-        renderItem={({ item, index }) => (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Ver reglas de ${item.name}`} onPress={() => router.push({ pathname: '/games/[gameId]', params: { gameId: String(item.bggId), name: item.name } })} style={styles.gameCard}>
-            <View style={[styles.gameArt, { backgroundColor: index % 2 === 0 ? colors.mint : colors.orangePale }]}>
-              <MaterialCommunityIcons name="dice-multiple-outline" size={28} color={index % 2 === 0 ? colors.forest : colors.orangeInk} />
-            </View>
-            <View style={styles.gameBody}>
-              <Text variant="titleMedium" style={styles.gameName} numberOfLines={2}>{item.name}</Text>
-              <Text style={styles.gameMeta}>{item.yearPublished || 'Año desconocido'} · {item.minPlayers ?? '?'}–{item.maxPlayers ?? '?'} jugadores</Text>
-              {!!item.playingTime && <Text style={styles.gameMeta}>{item.playingTime} min</Text>}
-              <ScoreBadge tone={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'success' : 'warning'} label={rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase())) ? 'Planilla lista' : 'Sin planilla'} />
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const hasSheet = rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase()));
+          return <MeepleGameTile
+            title={item.name}
+            imageUrl={item.thumbnailUrl || item.imageUrl}
+            detail={`${item.yearPublished || 'Año desconocido'} · ${item.minPlayers ?? '?'}–${item.maxPlayers ?? '?'} jugadores · ${hasSheet ? 'Planilla lista' : 'Sin planilla'}`}
+            onPress={() => router.push({ pathname: '/games/[gameId]', params: { gameId: String(item.bggId), name: item.name } })}
+          />;
+        }}
       />
     </SafeAreaView>
   );
@@ -149,12 +144,7 @@ const styles = StyleSheet.create({
   listTitle: { color: colors.ink, fontWeight: '800' },
   savedPDFSection: { gap: 9, marginTop: 12 },
   count: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  gameCard: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: 13, padding: 12 },
-  gameArt: { alignItems: 'center', borderRadius: 13, height: 62, justifyContent: 'center', width: 62 },
-  gameBody: { flex: 1 },
-  gameName: { color: colors.ink, fontWeight: '700' },
   gameMeta: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  sheetStatus: { fontSize: 11, fontWeight: '800', marginTop: 6 },
   empty: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 24, borderWidth: 1, gap: 14, marginTop: 15, padding: 28 },
   emptyIcon: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 23, height: 78, justifyContent: 'center', marginBottom: 2, width: 78 },
   emptyTitle: { color: colors.ink, fontWeight: '800', textAlign: 'center' },

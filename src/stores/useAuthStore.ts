@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { api, APIRequestError, setAuthToken, type AccountGameSession, type AccountStats, type AccountUser, type AuthSession } from '@/lib/api';
 import { loadAuthToken, saveAuthToken } from '@/lib/authSession';
 import { loadSavedGame } from '@/lib/savedGame';
+import { useTableScoreStore } from '@/stores/useTableScoreStore';
 
 type AuthState = {
   user: AccountUser | null;
@@ -79,8 +80,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   async refresh() {
     if (!get().user) return;
     try {
-      const [stats, sessions] = await Promise.all([api.getMyStats(), api.getMySessions()]);
+      const [stats, sessions, tables] = await Promise.all([api.getMyStats(), api.getMySessions(), api.getMyTables()]);
       set({ stats, sessions, error: null });
+      await useTableScoreStore.getState().syncAccountTables(tables, sessions);
     } catch (cause) {
       if (cause instanceof APIRequestError && cause.status === 401) {
         setAuthToken(null);
@@ -100,8 +102,12 @@ async function acceptSession(session: AuthSession, set: typeof useAuthStore.setS
   let claimError = false;
   try {
     const saved = await loadSavedGame();
-    if (saved.table && saved.sessionId && saved.selfPlayerId) {
-      await api.claimSession(saved.sessionId, saved.selfPlayerId, saved.table.hostToken);
+    for (const table of saved.tables) {
+      try {
+        await api.claimTable(table.code, table.hostToken);
+        const linked = saved.sessions[table.code];
+        if (linked?.sessionId && linked.selfPlayerId) await api.claimSession(linked.sessionId, linked.selfPlayerId, table.hostToken);
+      } catch { claimError = true; }
     }
   } catch { claimError = true; }
   await get().refresh();

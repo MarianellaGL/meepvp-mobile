@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { ScoreCalendar, ScoreDropdown, ScoreTextField as TextInput } from '@decodadev02/scoreui';
+import { ScoreCalendar, ScoreDropdown, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,7 +10,7 @@ import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 
 export default function ScheduleScreen() {
-  const { rules, scheduledGames, table, error, loadRules, loadScheduledGames, createScheduledGame } = useTableScoreStore();
+  const { rules, scheduledGames, table, error, loadRules, loadScheduledGames, createScheduledGame, updateScheduledGame, deleteScheduledGame } = useTableScoreStore();
   const [gameName, setGameName] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -18,6 +18,8 @@ export default function ScheduleScreen() {
   const [ruleId, setRuleId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
@@ -49,8 +51,11 @@ export default function ScheduleScreen() {
     }
     setSaving(true);
     try {
-      await createScheduledGame(gameName, when.toISOString(), players.split(',').map((name) => name.trim()).filter(Boolean), ruleId || undefined);
+      const playerNames = players.split(',').map((name) => name.trim()).filter(Boolean);
+      if (editingId) await updateScheduledGame(editingId, gameName, when.toISOString(), playerNames);
+      else await createScheduledGame(gameName, when.toISOString(), playerNames, ruleId || undefined);
       setGameName(''); setDate(''); setTime(''); setPlayers(''); setRuleId('');
+      setEditingId(null);
     } catch (cause) {
       setFormError(cause instanceof Error ? cause.message : 'No pudimos programar la partida.');
     } finally {
@@ -58,12 +63,31 @@ export default function ScheduleScreen() {
     }
   }
 
+  function startEditing(id: string) {
+    const game = scheduledGames.find((item) => item.id === id);
+    if (!game) return;
+    const when = new Date(game.scheduledAt);
+    setEditingId(id); setConfirmDeleteId(null); setFormError(null);
+    setGameName(game.gameName);
+    setDate(`${when.getFullYear()}-${String(when.getMonth() + 1).padStart(2, '0')}-${String(when.getDate()).padStart(2, '0')}`);
+    setTime(`${String(when.getHours()).padStart(2, '0')}:${String(when.getMinutes()).padStart(2, '0')}`);
+    setPlayers(game.players.join(', '));
+    setRuleId(game.ruleId ?? '');
+  }
+
+  async function cancelGame(id: string) {
+    setSaving(true); setFormError(null);
+    try { await deleteScheduledGame(id); setConfirmDeleteId(null); if (editingId === id) setEditingId(null); }
+    catch (cause) { setFormError(cause instanceof Error ? cause.message : 'No pudimos cancelar la partida.'); }
+    finally { setSaving(false); }
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>NOCHE DE JUEGOS</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Programar una partida</Text>
-        <Text style={styles.subtitle}>Elegí una fecha. Podés agregar la planilla después.</Text>
+        <Text style={styles.title}>{editingId ? 'Editar partida programada' : 'Programar una partida'}</Text>
+        <Text style={styles.subtitle}>{editingId ? 'Actualizá la fecha y los jugadores de esta partida.' : 'Elegí una fecha. Podés agregar la planilla después.'}</Text>
         <Text style={styles.muted}>Si falta la planilla, el dispositivo puede recordártelo 24 horas antes si permitís las notificaciones.</Text>
 
         <View style={styles.card}>
@@ -71,9 +95,10 @@ export default function ScheduleScreen() {
           <ScoreCalendar selectedDate={date || null} onSelect={setDate} minDate={todayKey} markedDates={scheduledGames.map((game) => { const day = new Date(game.scheduledAt); return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`; })} />
           <TextInput label="Hora · HH:MM" placeholder="20:00" value={time} onChangeText={setTime} keyboardType="numbers-and-punctuation" mode="outlined" />
           <TextInput label="Jugadores (opcional)" placeholder="Ana, Leo" value={players} onChangeText={setPlayers} mode="outlined" />
-          <ScoreDropdown label="Planilla (opcional)" value={ruleId} options={[{ value: '', label: 'Agregar después' }, ...rules.map((rule) => ({ value: rule.id, label: `${rule.gameName} · ${rule.name}` }))]} onChange={(selected) => { setRuleId(selected); const rule = rules.find((item) => item.id === selected); if (rule && !gameName.trim()) setGameName(rule.gameName); }} />
+          {!editingId && <ScoreDropdown label="Planilla (opcional)" value={ruleId} options={[{ value: '', label: 'Agregar después' }, ...rules.map((rule) => ({ value: rule.id, label: `${rule.gameName} · ${rule.name}` }))]} onChange={(selected) => { setRuleId(selected); const rule = rules.find((item) => item.id === selected); if (rule && !gameName.trim()) setGameName(rule.gameName); }} />}
           {formError && <Text style={styles.error}>{formError}</Text>}
-          <Button mode="contained" icon="calendar-plus" loading={saving} disabled={saving} onPress={schedule}>Programar partida</Button>
+          <Button mode="contained" icon={editingId ? 'content-save-outline' : 'calendar-plus'} loading={saving} disabled={saving} onPress={schedule}>{editingId ? 'Guardar cambios' : 'Programar partida'}</Button>
+          {editingId && <Button mode="text" onPress={() => { setEditingId(null); setGameName(''); setDate(''); setTime(''); setPlayers(''); setRuleId(''); setFormError(null); }}>Dejar de editar</Button>}
         </View>
 
         <Text style={styles.heading}>Tus partidas programadas</Text>
@@ -84,6 +109,15 @@ export default function ScheduleScreen() {
             <Text style={styles.gameName}>{game.gameName}</Text>
             <Text style={styles.muted}>{new Date(game.scheduledAt).toLocaleString()}</Text>
             <Text style={styles.muted}>{game.players.length ? game.players.join(', ') : 'Todavía no agregaste jugadores'}</Text>
+            {!game.sessionId && <View style={styles.actions}>
+              <Button mode="outlined" icon="pencil-outline" disabled={saving} onPress={() => startEditing(game.id)}>Editar</Button>
+              <Button mode="text" icon="close" disabled={saving} onPress={() => setConfirmDeleteId(game.id)}>Cancelar partida</Button>
+            </View>}
+            {confirmDeleteId === game.id && <View style={styles.confirmCard}>
+              <Text style={styles.muted}>¿Cancelar esta partida programada? Se quitará el recordatorio.</Text>
+              <Button mode="contained" loading={saving} disabled={saving} onPress={() => cancelGame(game.id)}>Sí, cancelar</Button>
+              <Button mode="text" onPress={() => setConfirmDeleteId(null)}>Volver</Button>
+            </View>}
             {game.sessionId ? (
               <Button mode="contained" icon="arrow-right" onPress={() => router.push(`/sessions/${game.sessionId}`)}>Abrir partida</Button>
             ) : game.ruleId ? (
@@ -123,4 +157,6 @@ const styles = StyleSheet.create({
   ready: { color: colors.forest, fontSize: 13, fontWeight: '700' },
   missing: { color: colors.orangeInk, fontSize: 13, fontWeight: '700' },
   error: { color: colors.error, fontSize: 13 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  confirmCard: { backgroundColor: colors.orangePale, borderRadius: 14, gap: 8, padding: 12 },
 });

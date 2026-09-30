@@ -1,7 +1,7 @@
 import type { DocumentPickerAsset } from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { fetch as expoFetch } from 'expo/fetch';
-import { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
 export type CollectionGame = {
@@ -9,6 +9,7 @@ export type CollectionGame = {
   name: string;
   yearPublished?: number;
   thumbnailUrl?: string;
+  imageUrl?: string;
   minPlayers?: number;
   maxPlayers?: number;
   playingTime?: number;
@@ -53,7 +54,7 @@ export const baseURL = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '
 let authToken: string | null = null;
 export function setAuthToken(token: string | null) { authToken = token; }
 export class APIRequestError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(message: string, public status: number, public retryAfterSeconds?: number) { super(message); }
 }
 
 function apiErrorMessage(message: string | undefined, status: number): string {
@@ -69,6 +70,7 @@ function apiErrorMessage(message: string | undefined, status: number): string {
     'could not extract rulebook PDF': 'No pudimos leer ese PDF. Podés probar con otro reglamento.',
   };
   if (message && known[message]) return known[message];
+  if (status === 429) return 'BoardGameGeek está limitando las solicitudes. Esperá un momento y reintentá.';
   if (status >= 500) return 'El servidor tuvo un problema. Reintentá en unos minutos.';
   return 'No pudimos completar la solicitud. Revisá los datos e intentá de nuevo.';
 }
@@ -78,9 +80,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...options?.headers },
   });
-  const body = await response.json().catch(() => null) as (T & { error?: string }) | null;
+  const body = await response.json().catch(() => null) as (T & { error?: string; retryAfterSeconds?: number }) | null;
   if (!response.ok && response.status !== 202) {
-    throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status);
+    throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status, body?.retryAfterSeconds);
   }
   if (body === null) throw new APIRequestError('El servidor devolvió una respuesta inválida. Reintentá en unos minutos.', response.status);
   return body;
@@ -96,8 +98,45 @@ export const api = {
   getMe: () => request<AccountUser>('/v1/me'),
   getMyStats: () => request<AccountStats>('/v1/me/stats'),
   getMySessions: () => request<AccountGameSession[]>('/v1/me/sessions'),
+  getMyTables: () => request<AnonymousTable[]>('/v1/me/tables'),
+  claimTable: (code: string, hostToken: string) => request<AnonymousTable>('/v1/me/claim-table', { method: 'POST', body: JSON.stringify({ code, hostToken }) }),
+  async getMyAvatar(): Promise<string | null> {
+    if (!authToken) return null;
+    const downloadFetch = Platform.OS === 'web' ? fetch : expoFetch;
+    const response = await downloadFetch(`${baseURL}/v1/me/avatar`, { headers: { Authorization: `Bearer ${authToken}` }, cache: 'no-store' });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new APIRequestError('No pudimos descargar tu avatar.', response.status);
+    const mime = response.headers.get('Content-Type') ?? 'image/jpeg';
+    const blob = await response.blob();
+    if (Platform.OS === 'web') return URL.createObjectURL(blob);
+    const extension = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+    const file = new File(Paths.cache, `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`);
+    file.write(new Uint8Array(await blob.arrayBuffer()));
+    return file.uri;
+  },
+  async saveMyAvatar(asset: ImagePickerAsset): Promise<void> {
+    if (!authToken) throw new Error('Iniciá sesión para sincronizar el avatar.');
+    if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('La foto supera los 5 MB. Elegí una imagen más liviana.');
+    const mime = asset.mimeType ?? 'image/jpeg';
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('Elegí una imagen JPEG, PNG o WebP.');
+    const data = new FormData();
+    const name = asset.fileName ?? `avatar.${mime.split('/')[1]}`;
+    if (Platform.OS === 'web' && asset.file) data.append('file', asset.file, name);
+    else data.append('file', new File(asset.uri), name);
+    const uploadFetch = Platform.OS === 'web' ? fetch : expoFetch;
+    const response = await uploadFetch(`${baseURL}/v1/me/avatar`, { method: 'PUT', headers: { Authorization: `Bearer ${authToken}` }, body: data });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status);
+    }
+  },
+  async deleteMyAvatar(): Promise<void> {
+    if (!authToken) return;
+    const response = await fetch(`${baseURL}/v1/me/avatar`, { method: 'DELETE', headers: { Authorization: `Bearer ${authToken}` } });
+    if (!response.ok) throw new APIRequestError('No pudimos quitar tu avatar.', response.status);
+  },
   claimSession: (sessionId: string, playerId: string, hostToken: string) => request<{ status: 'ok' }>('/v1/me/claim-session', { method: 'POST', body: JSON.stringify({ sessionId, playerId, hostToken }) }),
-  getCollection: (username: string) => request<BGGCollection>(`/v1/bgg/collections/${encodeURIComponent(username)}`),
+  getCollection: (username: string, signal?: AbortSignal) => request<BGGCollection>(`/v1/bgg/collections/${encodeURIComponent(username)}`, { signal }),
   getGameRules: (gameId: number) => request<GameRules>(`/v1/bgg/games/${gameId}/rules`),
   async extractPDF(asset: DocumentPickerAsset): Promise<PDFExtract> {
     const data = new FormData();
@@ -135,6 +174,14 @@ export const api = {
   listScheduledGames: (tableCode: string, hostToken: string) => request<ScheduledGame[]>(`/v1/tables/${encodeURIComponent(tableCode)}/scheduled-games`, { headers: { 'X-Table-Token': hostToken } }),
   setScheduledGameRule: (id: string, hostToken: string, ruleId: string) => request<ScheduledGame>(`/v1/scheduled-games/${encodeURIComponent(id)}/rule`, { method: 'PATCH', headers: { 'X-Table-Token': hostToken }, body: JSON.stringify({ ruleId }) }),
   setScheduledGameSession: (id: string, hostToken: string, sessionId: string) => request<ScheduledGame>(`/v1/scheduled-games/${encodeURIComponent(id)}/session`, { method: 'PATCH', headers: { 'X-Table-Token': hostToken }, body: JSON.stringify({ sessionId }) }),
+  updateScheduledGame: (id: string, hostToken: string, gameName: string, scheduledAt: string, players: string[]) => request<ScheduledGame>(`/v1/scheduled-games/${encodeURIComponent(id)}`, { method: 'PUT', headers: { 'X-Table-Token': hostToken }, body: JSON.stringify({ gameName, scheduledAt, players }) }),
+  async deleteScheduledGame(id: string, hostToken: string): Promise<void> {
+    const response = await fetch(`${baseURL}/v1/scheduled-games/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'X-Table-Token': hostToken } });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status);
+    }
+  },
   createSession: (tableCode: string, hostToken: string, ruleId: string, players: string[]) => request<ScoreSession>(`/v1/tables/${encodeURIComponent(tableCode)}/sessions`, { method: 'POST', headers: { 'X-Table-Token': hostToken }, body: JSON.stringify({ ruleId, players: players.map((name) => ({ name })) }) }),
   getSession: (sessionId: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}`),
   addPlayer: (sessionId: string, name: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/players`, { method: 'POST', body: JSON.stringify({ name }) }),

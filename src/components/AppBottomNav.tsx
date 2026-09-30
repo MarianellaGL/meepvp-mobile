@@ -21,9 +21,7 @@ export function AppBottomNav({ active, onSelect }: { active: AppTab; onSelect: (
       const center = item.key === 'new-game';
       const tint = item.key === active ? tokens.color.gold : tokens.color.secondaryText;
       return <Pressable key={item.key} accessibilityRole="tab" accessibilityState={{ selected: item.key === active }} accessibilityLabel={item.label} onPress={() => onSelect(item.key)} style={({ pressed }) => [styles.item, center && styles.centerItem, pressed && styles.pressed]}>
-        {center ? <View style={styles.die}>
-          <View style={[styles.pip, { left: 6, top: 6 }]} /><View style={[styles.pip, { right: 6, top: 6 }]} />
-          <View style={[styles.pip, { left: 6, bottom: 6 }]} /><View style={[styles.pip, { right: 6, bottom: 6 }]} />
+        {center ? <View style={styles.createAction}>
           <MaterialCommunityIcons name="plus" size={25} color={tokens.color.primaryText} />
         </View> : <MaterialCommunityIcons name={item.icon} size={24} color={tint} />}
         <Text numberOfLines={1} style={[styles.label, { color: center ? tokens.color.primaryText : tint }]}>{item.label}</Text>
@@ -38,6 +36,5 @@ const styles = StyleSheet.create({
   centerItem: { flex: 1.4 },
   pressed: { opacity: 0.65 },
   label: { fontFamily: tokens.font.medium, fontSize: 12, letterSpacing: 0.4, textAlign: 'center' },
-  die: { width: 44, height: 44, borderRadius: 10, backgroundColor: tokens.color.redDark, alignItems: 'center', justifyContent: 'center', marginTop: -10 },
-  pip: { position: 'absolute', width: 3, height: 3, borderRadius: 2, backgroundColor: tokens.color.primaryText },
+  createAction: { width: 44, height: 44, borderRadius: 12, backgroundColor: tokens.color.meepleRed, alignItems: 'center', justifyContent: 'center', marginTop: -10 },
 });

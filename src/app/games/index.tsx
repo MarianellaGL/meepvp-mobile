@@ -1,6 +1,6 @@
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ScoreSkeleton } from '@decodadev02/scoreui';
+import { MeepleGameTile, ScoreSkeleton } from '@decodadev02/meepleui';
 import { router } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,24 +40,15 @@ export default function GamesScreen() {
             <Button mode="contained" onPress={() => router.navigate('/')}>Ir a importar</Button>
           </View>
         }
-        renderItem={({ item, index }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Ver ${item.name}`}
+        renderItem={({ item }) => (
+          <MeepleGameTile
+            title={item.name}
+            imageUrl={item.thumbnailUrl || item.imageUrl}
+            detail={`${item.yearPublished || 'Año desconocido'} · ${item.minPlayers ?? '?'}–${item.maxPlayers ?? '?'} jugadores${item.playingTime ? ` · ${item.playingTime} min` : ''}`}
             onPress={() => router.push({ pathname: '/games/[gameId]', params: { gameId: String(item.bggId), name: item.name } })}
-            style={styles.gameCard}
-          >
-            <View style={[styles.gameIcon, { backgroundColor: index % 2 === 0 ? colors.mint : colors.orangePale }]}>
-              <MaterialCommunityIcons name="dice-multiple-outline" size={27} color={index % 2 === 0 ? colors.forest : colors.orangeInk} />
-            </View>
-            <View style={styles.gameBody}>
-              <Text style={styles.gameName} numberOfLines={2}>{item.name}</Text>
-              <Text style={styles.gameMeta}>{item.yearPublished || 'Año desconocido'} · {item.minPlayers ?? '?'}–{item.maxPlayers ?? '?'} jugadores</Text>
-              {!!item.playingTime && <Text style={styles.gameMeta}>{item.playingTime} min</Text>}
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
-          </Pressable>
+          />
         )}
+        ListFooterComponent={collection.length > 0 ? <Button mode="contained" onPress={() => router.navigate('/profile')}>Volver al perfil</Button> : null}
       />
     </SafeAreaView>
   );
@@ -72,11 +63,6 @@ const styles = StyleSheet.create({
   crumbCurrent: { color: colors.muted, fontSize: 13 },
   title: { color: colors.ink, fontSize: 34, fontWeight: '800', letterSpacing: -1.2 },
   subtitle: { color: colors.muted, fontSize: 15, marginTop: 5 },
-  gameCard: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: 13, padding: 12 },
-  gameIcon: { alignItems: 'center', borderRadius: 13, height: 62, justifyContent: 'center', width: 62 },
-  gameBody: { flex: 1 },
-  gameName: { color: colors.ink, fontSize: 16, fontWeight: '700' },
-  gameMeta: { color: colors.muted, fontSize: 12, marginTop: 3 },
   empty: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 22, borderWidth: 1, gap: 12, marginTop: 15, padding: 28 },
   emptyTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
   emptyCopy: { color: colors.muted, textAlign: 'center' },

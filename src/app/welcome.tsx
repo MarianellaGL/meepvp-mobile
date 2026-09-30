@@ -1,5 +1,5 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MeepleLogo } from '@decodadev02/meepleui';
 import { router } from 'expo-router';
 import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,8 +14,7 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.mark}><MaterialCommunityIcons name="dice-multiple" size={38} color={colors.canvas} /></View>
-        <Text style={styles.brand}>MeppVP</Text>
+        <View style={styles.brandRow}><MeepleLogo size={48} /><Text style={styles.brand}>MEEPVP</Text></View>
         <Text style={styles.title}>Tu partida empieza acá.</Text>
         <Text style={styles.copy}>Llevá los puntos, compartí planillas y descubrí quién ganó. Elegí cómo querés entrar.</Text>
 
@@ -34,8 +33,8 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   safe: { backgroundColor: colors.canvas, flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', padding: 24, paddingBottom: 42 },
-  mark: { alignItems: 'center', backgroundColor: colors.forest, borderRadius: 26, height: 76, justifyContent: 'center', width: 76 },
-  brand: { color: colors.orangeInk, fontSize: 13, fontWeight: '800', letterSpacing: 2, marginTop: 28 },
+  brandRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  brand: { color: colors.orangeInk, fontSize: 13, fontWeight: '800', letterSpacing: 2 },
   title: { color: colors.ink, fontSize: 38, fontWeight: '800', letterSpacing: -1.5, lineHeight: 43, marginTop: 9 },
   copy: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 14 },
   actions: { gap: 12, marginTop: 36 },

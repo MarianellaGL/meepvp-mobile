@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreTextField as TextInput } from '@decodadev02/scoreui';
+import { ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ export default function PDFReaderScreen() {
   const [showFullText, setShowFullText] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [retryAsset, setRetryAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [replacingDocument, setReplacingDocument] = useState(false);
   const [gameNameDraft, setGameNameDraft] = useState(game ?? '');
   const [saving, setSaving] = useState(false);
@@ -32,7 +33,8 @@ export default function PDFReaderScreen() {
   const name = gameNameDraft.trim();
   const matchedGame = collection.find((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
   const resolvedGameId = Number(gameId) > 0 ? Number(gameId) : matchedGame?.bggId;
-  const savedDocument = savedPDFs.find((item) => resolvedGameId ? item.gameId === resolvedGameId : item.gameName.toLocaleLowerCase() === name.toLocaleLowerCase())?.document;
+  const savedItem = savedPDFs.find((item) => resolvedGameId ? item.gameId === resolvedGameId : item.gameName.toLocaleLowerCase() === name.toLocaleLowerCase());
+  const savedDocument = savedItem?.document;
   const catalogDocument = rulebookId && pdfDraft?.rulebook?.id === rulebookId ? pdfDraft : null;
   const activeDocument = document ?? (replacingDocument ? null : catalogDocument ?? savedDocument) ?? null;
   const scoringTable = activeDocument ? extractScoringTable(activeDocument) : null;
@@ -41,7 +43,7 @@ export default function PDFReaderScreen() {
   async function saveCurrentPDF(pdf: PDFExtract) {
     if (!name) throw new Error('Ingresá el nombre del juego para guardar este PDF.');
     await savePDF(name, resolvedGameId, pdf);
-    setSavedStatus('Guardado en la biblioteca de este dispositivo.');
+    setSavedStatus('Extracción guardada en este dispositivo. El archivo PDF original no se conserva.');
   }
 
   async function saveAndBuild() {
@@ -53,15 +55,46 @@ export default function PDFReaderScreen() {
       setPDFDraft(activeDocument);
       router.push({ pathname: '/rules/new', params: { fromPdf: '1', game: name, ...(resolvedGameId ? { gameId: String(resolvedGameId) } : {}) } });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No pudimos guardar el PDF.');
+      setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.');
     } finally {
       setSaving(false);
     }
   }
 
+  async function importAsset(asset: DocumentPicker.DocumentPickerAsset) {
+    setError(null);
+    setRetryAsset(asset);
+    setSelectedFile(asset.name);
+    setReplacingDocument(true);
+    setDocument(null);
+    setSavedStatus(null);
+    if (asset.size && asset.size > 20 * 1024 * 1024) {
+      setError('Elegí un PDF de menos de 20 MB.');
+      setRetryAsset(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await api.extractPDF(asset);
+      setDocument(result);
+      setRetryAsset(null);
+      if (!name && result.scoringSuggestion?.gameName) setGameNameDraft(result.scoringSuggestion.gameName);
+      setPDFDraft(result);
+      setShowFullText(false);
+      if (name) {
+        try { await saveCurrentPDF(result); }
+        catch { setError('Leímos el PDF, pero no pudimos guardar la extracción en este dispositivo.'); }
+      }
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : 'Error desconocido.';
+      setError(`No pudimos importar el PDF: ${reason}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function pickPDF() {
     setError(null);
-    let step: 'select' | 'upload' = 'select';
     try {
       const picked = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
       if (picked.canceled) return;
@@ -70,30 +103,10 @@ export default function PDFReaderScreen() {
         setError('No seleccionaste ningún archivo.');
         return;
       }
-      setSelectedFile(asset.name);
-      setReplacingDocument(true);
-      setDocument(null);
-      setSavedStatus(null);
-      if (asset.size && asset.size > 20 * 1024 * 1024) {
-        setError('Elegí un PDF de menos de 20 MB.');
-        return;
-      }
-      step = 'upload';
-      setLoading(true);
-      const result = await api.extractPDF(asset);
-      setDocument(result);
-      if (!name && result.scoringSuggestion?.gameName) setGameNameDraft(result.scoringSuggestion.gameName);
-      setPDFDraft(result);
-      setShowFullText(false);
-      if (name) {
-        try { await saveCurrentPDF(result); }
-        catch { setError('Leímos el PDF, pero no pudimos guardarlo en este dispositivo.'); }
-      }
+      await importAsset(asset);
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : 'Error desconocido.';
-      setError(step === 'select' ? `No pudimos seleccionar el PDF: ${reason}` : `No pudimos importar el PDF: ${reason}`);
-    } finally {
-      setLoading(false);
+      setError(`No pudimos seleccionar el PDF: ${reason}`);
     }
   }
 
@@ -110,11 +123,12 @@ export default function PDFReaderScreen() {
           <Text style={styles.cardTitle}>{loading ? selectedFile : activeDocument?.fileName ?? selectedFile ?? 'Elegí un PDF'}</Text>
           {activeDocument && !loading && <Text style={styles.muted}>{activeDocument.pages} páginas</Text>}
           <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>{activeDocument ? 'Elegir otro PDF' : 'Elegir PDF'}</Button>
-          <Text style={styles.muted}>Los PDF escaneados también se leen y pueden tardar un poco más.</Text>
+          <Text style={styles.muted}>Los PDF escaneados también se leen y pueden tardar un poco más. Al guardar, conservamos el texto extraído y la propuesta, no el archivo original.</Text>
         </View>
 
-        {loading && <ActivityIndicator size="large" style={styles.loader} />}
+        {loading && <View style={styles.loadingCard}><ActivityIndicator size="large" /><Text style={styles.muted}>Subiendo y leyendo {selectedFile ?? 'el PDF'}…</Text></View>}
         {error && <View style={styles.errorCard}><Text style={styles.error}>{error}</Text></View>}
+        {retryAsset && !loading && <Button mode="outlined" icon="refresh" onPress={() => importAsset(retryAsset).catch(() => undefined)}>Reintentar con {retryAsset.name}</Button>}
         {savedStatus && <Text style={styles.saved}>{savedStatus}</Text>}
         {activeDocument && !loading && (
           <>
@@ -150,8 +164,8 @@ export default function PDFReaderScreen() {
               )) : <View style={styles.card}><Text style={styles.muted}>No encontramos fragmentos sobre puntos. Podés leer el texto completo abajo.</Text></View>}
             </>}
             <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Ocultar texto' : 'Leer texto extraído'}</Button>
-            {showFullText && <View style={styles.card}><Text selectable style={styles.bodyText}>{activeDocument.text || 'No pudimos encontrar texto en este PDF.'}</Text></View>}
-            <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar el PDF.')).finally(() => setSaving(false)); }}>Guardar PDF en biblioteca</Button>
+            {showFullText && <View style={styles.card}>{activeDocument === savedDocument && savedItem?.textTruncated && <Text style={styles.muted}>La copia guardada conserva las primeras 200.000 letras del texto extraído.</Text>}<Text selectable style={styles.bodyText}>{activeDocument.text || 'No pudimos encontrar texto en este PDF.'}</Text></View>}
+            <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.')).finally(() => setSaving(false)); }}>Guardar extracción en biblioteca</Button>
             <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>Crear planilla</Button>
             {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el PDF o crear una planilla.</Text>}
             <Text style={styles.muted}>{scoringDraft ? 'Los campos se cargarán en la planilla para que los revises antes de empezar una partida.' : 'Revisá el reglamento antes de agregar campos y puntos.'}</Text>
@@ -174,6 +188,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   muted: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   loader: { marginTop: 12 },
+  loadingCard: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 12, padding: 24 },
   errorCard: { backgroundColor: colors.orangePale, borderRadius: 15, padding: 14 },
   error: { color: colors.error },
   saved: { color: colors.forest, fontSize: 13, fontWeight: '700' },

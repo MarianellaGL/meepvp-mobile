@@ -1,4 +1,4 @@
-import { scoreUITheme, tokens } from '@decodadev02/scoreui';
+import { meepleUITheme, tokens } from '@decodadev02/meepleui';
 
 const palette = tokens.color;
 
@@ -17,5 +17,5 @@ export const colors = {
   error: palette.warning,
 };
 
-export const paperTheme = scoreUITheme;
+export const paperTheme = meepleUITheme;
 export { tokens };

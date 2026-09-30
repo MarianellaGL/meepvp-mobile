@@ -1,11 +1,21 @@
 import { create } from 'zustand';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-import { api, type AnonymousTable, type CollectionGame, type CreateScoringRule, type PDFExtract, type ScheduledGame, type ScoreSession, type ScoringRule } from '@/lib/api';
-import { loadSavedGame, saveSelfPlayerId, saveSessionId, saveTable } from '@/lib/savedGame';
+import { api, APIRequestError, type AccountGameSession, type AnonymousTable, type CollectionGame, type CreateScoringRule, type PDFExtract, type ScheduledGame, type ScoreSession, type ScoringRule } from '@/lib/api';
+import { loadSavedGame, mergeSavedTables, saveGuestSession, saveSelfPlayerId, saveSessionForTable, saveSessionId, saveTable, selectSavedTable } from '@/lib/savedGame';
 import { loadSavedLibrary, saveLibrary } from '@/lib/savedLibrary';
 import { loadSavedPDFs, savePDFs, type SavedPDF } from '@/lib/savedPDFs';
 import { requestReminderPermission, syncScoreSheetReminders } from '@/lib/sheetReminders';
+
+let collectionController: AbortController | null = null;
+function waitForRetry(seconds: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(new Error('Importación cancelada.')); return; }
+    const cancel = () => { clearTimeout(timer); reject(new Error('Importación cancelada.')); };
+    const timer = setTimeout(() => { signal.removeEventListener('abort', cancel); resolve(); }, Math.max(1, Math.min(seconds, 30)) * 1000);
+    signal.addEventListener('abort', cancel, { once: true });
+  });
+}
 
 type TableScoreState = {
   collection: CollectionGame[];
@@ -13,6 +23,9 @@ type TableScoreState = {
   knownPlayers: string[];
   myPlayerName: string;
   table: AnonymousTable | null;
+  tables: AnonymousTable[];
+  tableSessions: Record<string, ScoreSession>;
+  guestSession: ScoreSession | null;
   latestRule: ScoringRule | null;
   pdfDraft: PDFExtract | null;
   savedPDFs: SavedPDF[];
@@ -36,10 +49,16 @@ type TableScoreState = {
   error: string | null;
   collectionStatus: string | null;
   loadCollection: (username: string) => Promise<void>;
+  cancelCollection: () => void;
   restore: () => Promise<void>;
+  syncAccountTables: (tables: AnonymousTable[], sessions: AccountGameSession[]) => Promise<void>;
+  refreshTables: () => Promise<void>;
+  selectTable: (code: string) => Promise<void>;
   createTable: (name: string) => Promise<void>;
   createScoringRule: (rule: CreateScoringRule) => Promise<ScoringRule>;
   createScheduledGame: (gameName: string, scheduledAt: string, players: string[], ruleId?: string) => Promise<ScheduledGame>;
+  updateScheduledGame: (id: string, gameName: string, scheduledAt: string, players: string[]) => Promise<void>;
+  deleteScheduledGame: (id: string) => Promise<void>;
   loadScheduledGames: () => Promise<void>;
   setScheduledGameRule: (id: string, ruleId: string) => Promise<void>;
   setScheduledGameSession: (id: string, sessionId: string) => Promise<void>;
@@ -48,7 +67,7 @@ type TableScoreState = {
   createSession: (ruleId: string, players: string[]) => Promise<ScoreSession>;
   joinSessionAsMe: (name: string) => Promise<void>;
   setMyPlayerName: (name: string) => Promise<void>;
-  loadSession: (sessionId: string) => Promise<void>;
+  loadSession: (sessionId: string, playerId?: string) => Promise<void>;
   refreshSession: (sessionId: string) => Promise<void>;
   updateScore: (playerId: string, fieldId: string, value: number) => Promise<void>;
   adjustPoints: (playerId: string, delta: number) => Promise<void>;
@@ -67,6 +86,9 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   knownPlayers: [],
   myPlayerName: '',
   table: null,
+  tables: [],
+  tableSessions: {},
+  guestSession: null,
   latestRule: null,
   pdfDraft: null,
   savedPDFs: [],
@@ -94,8 +116,17 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     set({ isRestoring: true, error: null });
     try {
       const [savedGame, savedLibrary, savedPDFs] = await Promise.all([loadSavedGame(), loadSavedLibrary(), loadSavedPDFs()]);
-      const { table, sessionId, selfPlayerId } = savedGame;
-      set({ table, selfPlayerId: sessionId ? selfPlayerId : null, username: savedLibrary.username, collection: savedLibrary.collection, rules: savedLibrary.scoringRules, savedPDFs, knownPlayers: savedLibrary.players, myPlayerName: savedLibrary.myPlayerName });
+      const { table, tables } = savedGame;
+      const sessionId = table ? savedGame.sessions[table.code]?.sessionId ?? null : savedGame.guestSession?.sessionId ?? null;
+      const selfPlayerId = table ? savedGame.sessions[table.code]?.selfPlayerId ?? null : savedGame.guestSession?.selfPlayerId ?? null;
+      set({ table, tables, selfPlayerId: sessionId ? selfPlayerId : null, username: savedLibrary.username, collection: savedLibrary.collection, rules: savedLibrary.scoringRules, savedPDFs, knownPlayers: savedLibrary.players, myPlayerName: savedLibrary.myPlayerName });
+      await get().refreshTables();
+      if (savedGame.guestSession?.sessionId) {
+        try {
+          const guestSession = await api.getSession(savedGame.guestSession.sessionId);
+          set({ guestSession, ...(!get().table && !get().session ? { session: guestSession, selfPlayerId: savedGame.guestSession.selfPlayerId } : {}) });
+        } catch { /* Keep hosted tables available if a guest game is no longer reachable. */ }
+      }
       if (table) {
         try {
           const scheduledGames = await api.listScheduledGames(table.code, table.hostToken);
@@ -111,7 +142,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       } catch {
         // Keep the local snapshot when offline.
       }
-      if (sessionId) {
+      if (sessionId && !get().session) {
         try {
           const session = await api.getSession(sessionId);
           set({ session, selfPlayerId: session.players.some((player) => player.id === selfPlayerId) ? selfPlayerId : null });
@@ -130,11 +161,74 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       set({ isRestoring: false, hasRestored: true });
     }
   },
+  async syncAccountTables(accountTables, accountSessions) {
+    await mergeSavedTables(accountTables);
+    const saved = await loadSavedGame();
+    const tables = saved.tables;
+    const linked = Object.fromEntries(accountSessions.map((session) => [session.id, session.myPlayerId]));
+    const results = await Promise.allSettled(tables.map((table) => api.currentSessionByTable(table.code)));
+    const tableSessions = { ...get().tableSessions };
+    results.forEach((result, index) => {
+      const code = tables[index].code;
+      if (result.status === 'fulfilled') tableSessions[code] = result.value;
+      else if (result.reason instanceof APIRequestError && result.reason.status === 404) delete tableSessions[code];
+    });
+    for (const session of Object.values(tableSessions)) {
+      const playerId = linked[session.id] ?? saved.sessions[session.tableCode]?.selfPlayerId ?? null;
+      await saveSessionForTable(session.tableCode, session.id, playerId);
+    }
+    const selected = tables.find((item) => item.code === saved.selectedCode) ?? tables.find((item) => tableSessions[item.code]) ?? tables[0] ?? null;
+    const current = selected ? tableSessions[selected.code] ?? null : null;
+    const currentPlayerId = current ? linked[current.id] ?? saved.sessions[selected!.code]?.selfPlayerId ?? null : null;
+    set({ tables, table: selected, tableSessions, session: current, selfPlayerId: currentPlayerId });
+  },
+  async refreshTables() {
+    const tables = get().tables;
+    if (!tables.length) return;
+    const results = await Promise.allSettled(tables.map((table) => api.currentSessionByTable(table.code)));
+    const tableSessions = { ...get().tableSessions };
+    results.forEach((result, index) => {
+      const code = tables[index].code;
+      if (result.status === 'fulfilled') tableSessions[code] = result.value;
+      else if (result.reason instanceof APIRequestError && result.reason.status === 404) delete tableSessions[code];
+    });
+    const selected = get().table;
+    if (selected && tableSessions[selected.code]) set({ tableSessions, session: tableSessions[selected.code] });
+    else if (selected && get().session?.tableCode === selected.code && get().session?.status !== 'finished') set({ tableSessions, session: null, selfPlayerId: null });
+    else set({ tableSessions });
+  },
+  async selectTable(code) {
+    const table = get().tables.find((item) => item.code === code);
+    if (!table) throw new Error('No encontramos esa mesa.');
+    const saved = await loadSavedGame();
+    let session: ScoreSession | null = get().tableSessions[code] ?? null;
+    try { session = await api.currentSessionByTable(code); }
+    catch (cause) { if (cause instanceof APIRequestError && cause.status === 404) session = null; else if (!session) throw cause; }
+    await selectSavedTable(code);
+    if (session) await saveSessionForTable(code, session.id, saved.sessions[code]?.sessionId === session.id ? saved.sessions[code]?.selfPlayerId ?? null : null);
+    const tableSessions = { ...get().tableSessions };
+    if (session) tableSessions[code] = session;
+    else delete tableSessions[code];
+    set({ table, session, tableSessions, selfPlayerId: session && saved.sessions[code]?.sessionId === session.id ? saved.sessions[code]?.selfPlayerId ?? null : null, scheduledGames: [] });
+    get().loadScheduledGames().catch(() => undefined);
+  },
   async loadCollection(username) {
+    collectionController?.abort();
+    const controller = new AbortController();
+    collectionController = controller;
     set({ isLoadingCollection: true, error: null, collectionStatus: null });
     try {
       for (let attempt = 0; attempt < 5; attempt += 1) {
-        const result = await api.getCollection(username.trim());
+        let result;
+        try { result = await api.getCollection(username.trim(), controller.signal); }
+        catch (cause) {
+          if (!(cause instanceof APIRequestError && cause.status === 429) || attempt === 4) throw cause;
+          const seconds = cause.retryAfterSeconds ?? 10;
+          set({ collectionStatus: `BoardGameGeek pidió esperar ${seconds} s antes de reintentar.` });
+          await waitForRetry(seconds, controller.signal);
+          continue;
+        }
+        if (controller.signal.aborted) return;
         if (result.status === 'ready') {
           const collection = result.games ?? [];
           set({ collection, username: username.trim(), collectionStatus: `${collection.length} juegos importados.` });
@@ -144,21 +238,27 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
         }
         const seconds = result.retryAfterSeconds ?? 5;
         set({ collectionStatus: `BoardGameGeek está preparando tu colección. Reintentamos en ${seconds} s…` });
-        await new Promise<void>((resolve) => setTimeout(resolve, seconds * 1000));
+        await waitForRetry(seconds, controller.signal);
       }
       throw new Error('BoardGameGeek todavía está preparando tu colección. Reintentá en un momento.');
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'No pudimos cargar tu colección.' });
+      if (controller.signal.aborted) return;
+      set({ error: error instanceof Error ? error.message : 'No pudimos cargar tu colección.', collectionStatus: 'Tu colección anterior sigue disponible. Podés reintentar cuando quieras.' });
       throw error;
     } finally {
-		set({ isLoadingCollection: false });
+      if (collectionController === controller) { collectionController = null; set({ isLoadingCollection: false }); }
     }
+  },
+  cancelCollection() {
+    collectionController?.abort();
+    collectionController = null;
+    set({ isLoadingCollection: false, collectionStatus: 'Importación cancelada. Tu colección anterior sigue disponible.' });
   },
   async createTable(name) {
     set({ isCreatingTable: true, error: null });
     try {
       const table = await api.createTable(name.trim() || 'Noche de juegos');
-      set({ table, session: null, selfPlayerId: null, scheduledGames: [] });
+      set({ table, tables: [table, ...get().tables.filter((item) => item.code !== table.code)], session: null, selfPlayerId: null, scheduledGames: [] });
       try {
         await saveTable(table);
         await saveSessionId(null);
@@ -201,6 +301,24 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       throw cause;
     }
   },
+  async updateScheduledGame(id, gameName, scheduledAt, players) {
+    const game = get().scheduledGames.find((item) => item.id === id);
+    const table = get().tables.find((item) => item.code === game?.tableCode);
+    if (!table) throw new Error('No encontramos la mesa de esta partida.');
+    const updated = await api.updateScheduledGame(id, table.hostToken, gameName, scheduledAt, players);
+    const scheduledGames = get().scheduledGames.map((item) => item.id === id ? updated : item).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+    set({ scheduledGames });
+    syncScoreSheetReminders(scheduledGames).catch(() => undefined);
+  },
+  async deleteScheduledGame(id) {
+    const game = get().scheduledGames.find((item) => item.id === id);
+    const table = get().tables.find((item) => item.code === game?.tableCode);
+    if (!table) throw new Error('No encontramos la mesa de esta partida.');
+    await api.deleteScheduledGame(id, table.hostToken);
+    const scheduledGames = get().scheduledGames.filter((item) => item.id !== id);
+    set({ scheduledGames });
+    syncScoreSheetReminders(scheduledGames).catch(() => undefined);
+  },
   async loadScheduledGames() {
     const table = get().table;
     if (!table) return;
@@ -236,8 +354,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     const name = gameName.trim();
     if (!name) throw new Error('Ingresá el nombre del juego antes de guardar el PDF.');
     const imported: SavedPDF = { gameName: name, ...(gameId ? { gameId } : {}), document, importedAt: new Date().toISOString() };
-    const savedPDFs = [imported, ...get().savedPDFs.filter((saved) => gameId ? saved.gameId !== gameId : saved.gameName.toLocaleLowerCase() !== name.toLocaleLowerCase())].slice(0, 10);
-    await savePDFs(savedPDFs);
+    const savedPDFs = await savePDFs([imported, ...get().savedPDFs.filter((saved) => gameId ? saved.gameId !== gameId : saved.gameName.toLocaleLowerCase() !== name.toLocaleLowerCase())]);
     set({ savedPDFs });
   },
   async loadRules() {
@@ -256,7 +373,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     try {
       const session = await api.createSession(table.code, table.hostToken, ruleId, players);
       const selfPlayerId = session.players[0]?.id ?? null;
-      set({ session, selfPlayerId });
+      set({ session, selfPlayerId, tableSessions: { ...get().tableSessions, [table.code]: session } });
       const knownPlayers = [...get().knownPlayers];
       for (const name of players) {
         const cleaned = name.trim();
@@ -289,8 +406,11 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     try {
       const updated = await api.addPlayer(session.id, myPlayerName);
       const selfPlayerId = updated.players.find((player) => player.name.toLocaleLowerCase() === myPlayerName.toLocaleLowerCase())?.id ?? null;
-      set({ session: updated, selfPlayerId });
-      try { await saveSelfPlayerId(selfPlayerId); }
+      set({ session: updated, selfPlayerId, ...(get().table?.code !== updated.tableCode ? { guestSession: updated } : {}) });
+      try {
+        if (get().table?.code === updated.tableCode) await saveSessionForTable(updated.tableCode, updated.id, selfPlayerId);
+        else await saveGuestSession(updated.id, selfPlayerId);
+      }
       catch { set({ error: 'Te uniste, pero este dispositivo no pudo guardar tu identidad de jugador.' }); }
       await get().setMyPlayerName(myPlayerName);
       const knownPlayers = [...get().knownPlayers];
@@ -307,20 +427,21 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
       set({ isJoiningSession: false });
     }
   },
-  async loadSession(sessionId) {
+  async loadSession(sessionId, playerId) {
     if (get().isLoadingSession) return;
     set({ isLoadingSession: true, error: null });
     try {
       const session = await api.getSession(sessionId);
-      const savedSelfPlayerId = get().selfPlayerId;
+      const saved = await loadSavedGame();
+      const owned = get().tables.find((table) => table.code === session.tableCode);
+      const savedSelfPlayerId = playerId ?? (owned && saved.sessions[owned.code]?.sessionId === sessionId ? saved.sessions[owned.code]?.selfPlayerId : saved.guestSession?.sessionId === sessionId ? saved.guestSession.selfPlayerId : null);
       const selfPlayerId = session.players.some((player) => player.id === savedSelfPlayerId) ? savedSelfPlayerId : null;
-      set({ session, selfPlayerId });
-      try { await saveSessionId(session.id); }
-      catch { set({ error: 'Cargamos la partida, pero este dispositivo no pudo guardarla.' }); }
-      if (!selfPlayerId) {
-        try { await saveSelfPlayerId(null); }
-        catch { set({ error: 'Cargamos la partida, pero este dispositivo no pudo actualizar tu identidad de jugador.' }); }
+      set({ session, selfPlayerId, ...(owned ? { table: owned, tableSessions: { ...get().tableSessions, [owned.code]: session } } : { guestSession: session }) });
+      try {
+        if (owned) { await selectSavedTable(owned.code); await saveSessionForTable(owned.code, session.id, selfPlayerId); }
+        else await saveGuestSession(session.id, selfPlayerId);
       }
+      catch { set({ error: 'Cargamos la partida, pero este dispositivo no pudo guardarla.' }); }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'No pudimos cargar la partida.' });
       throw error;
@@ -334,7 +455,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     try {
       const updated = await api.getSession(sessionId);
       const current = get();
-      if (current.session?.id === sessionId && !current.isUpdatingScore && !current.isAdjustingPoints && !current.isFinishingSession && Date.parse(updated.lastModified) >= Date.parse(current.session.lastModified)) set({ session: updated });
+      if (current.session?.id === sessionId && !current.isUpdatingScore && !current.isAdjustingPoints && !current.isFinishingSession && Date.parse(updated.lastModified) >= Date.parse(current.session.lastModified)) set({ session: updated, ...(current.guestSession?.id === sessionId ? { guestSession: updated } : {}) });
     } catch { /* Keep the last known score while the connection recovers. */ }
   },
   async updateScore(playerId, fieldId, value) {

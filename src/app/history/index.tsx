@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { ScoreGameCard } from '@decodadev02/scoreui';
+import { ScoreGameCard } from '@decodadev02/meepleui';
 import { router, useFocusEffect } from 'expo-router';
 import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';

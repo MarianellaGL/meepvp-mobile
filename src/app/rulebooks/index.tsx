@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { ScoreTextField as TextInput } from '@decodadev02/scoreui';
+import { ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, IconButton, SegmentedButtons, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -61,7 +61,7 @@ export default function RulebookCatalogScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.top}><IconButton icon="arrow-left" onPress={() => router.back()} /><Text style={styles.label}>REGLAMENTOS</Text></View>
-      <Text style={styles.title}>Enseñale un juego a MeppVP.</Text>
+      <Text style={styles.title}>Enseñale un juego a MeepVP.</Text>
       <Text style={styles.copy}>Buscá el reglamento, elegí la edición correcta y revisá la propuesta de puntuación antes de guardar.</Text>
       <TextInput label="Nombre del juego" value={query} onChangeText={(value) => setQuery(Array.from(value).slice(0, 100).join(''))} mode="outlined" returnKeyType="search" onSubmitEditing={() => { if (!loading && !importing) void search(); }} />
       <SegmentedButtons value={language} onValueChange={(value) => { setLanguage(value); setLoading(true); setError(null); setSearched(false); setBooks([]); }} buttons={[{ value: 'en', label: 'Inglés', disabled: !!importing }, { value: 'fr', label: 'Francés', disabled: !!importing }]} />

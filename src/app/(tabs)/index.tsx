@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Redirect, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ScoreTextField as TextInput } from '@decodadev02/scoreui';
+import { MeepleLogo, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, HelperText, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,13 +18,15 @@ export default function DashboardScreen() {
   const [usernameDraft, setUsernameDraft] = useState<string | null>(null);
   const [tableName, setTableName] = useState('');
   const store = useTableScoreStore();
-  const activeSession = store.session?.status === 'active' ? store.session : null;
-  const pausedSession = store.session?.status === 'paused' ? store.session : null;
+  const selectedSession = store.session && (!store.table || store.session.tableCode === store.table.code) ? store.session : null;
+  const activeSession = selectedSession?.status === 'active' ? selectedSession : null;
+  const pausedSession = selectedSession?.status === 'paused' ? selectedSession : null;
   const currentSession = activeSession ?? pausedSession;
   const authReady = useAuthStore((state) => state.hasRestored);
   const user = useAuthStore((state) => state.user);
   const entered = useEntryStore((state) => state.entered);
   const username = usernameDraft ?? store.username;
+  useEffect(() => () => useTableScoreStore.getState().cancelCollection(), []);
 
   async function createTable() {
     try { await store.createTable(tableName); } catch { /* The store displays the error. */ }
@@ -48,9 +50,9 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.brand}>
-          <View style={styles.brandMark}><MaterialCommunityIcons name="dice-multiple" color={colors.canvas} size={22} /></View>
+          <MeepleLogo size={42} />
           <View>
-            <Text style={styles.brandName}>MeppVP</Text>
+            <Text style={styles.brandName}>MeepVP</Text>
             <Text style={styles.brandTag}>TU MESA, TUS REGLAS</Text>
           </View>
         </View>
@@ -167,12 +169,13 @@ export default function DashboardScreen() {
           <Text style={styles.muted}>Ingresá tu usuario de BGG para ver tu colección acá.</Text>
           <TextInput label="Usuario de BGG" value={username} onChangeText={setUsernameDraft} autoCapitalize="none" mode="outlined" />
           <Button mode="outlined" icon="download" loading={store.isLoadingCollection} disabled={!store.hasRestored || !username.trim()} onPress={importCollection}>Importar colección</Button>
+          {store.isLoadingCollection && <Button mode="text" icon="close" onPress={store.cancelCollection}>Cancelar espera</Button>}
         </View>
         {store.error && <HelperText type="error" visible>{store.error}</HelperText>}
         {store.collectionStatus && <HelperText type="info" visible>{store.collectionStatus}</HelperText>}
         {store.collection.slice(0, 3).map((game) => (
           <View key={game.bggId} style={styles.gameRow}>
-            <View style={styles.gameMark}><MaterialCommunityIcons name="dice-5-outline" color={colors.forest} size={22} /></View>
+            <View style={styles.gameMark}>{game.thumbnailUrl || game.imageUrl ? <Image source={{ uri: game.thumbnailUrl ?? game.imageUrl }} style={styles.gameImage} /> : <MaterialCommunityIcons name="cards-playing-outline" color={colors.forest} size={22} />}</View>
             <View style={styles.gameDetails}>
               <Text variant="titleSmall">{game.name}</Text>
               <Text style={styles.muted}>{game.yearPublished || 'Año desconocido'} · {game.minPlayers ?? '?'}–{game.maxPlayers ?? '?'} jugadores</Text>
@@ -188,7 +191,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { paddingHorizontal: 20, paddingBottom: 36 },
   brand: { alignItems: 'center', flexDirection: 'row', gap: 10, marginBottom: 22, marginTop: 14 },
-  brandMark: { alignItems: 'center', backgroundColor: colors.forest, borderRadius: 13, height: 42, justifyContent: 'center', width: 42 },
   brandName: { color: colors.ink, fontSize: 21, fontWeight: '800', letterSpacing: -0.6 },
   brandTag: { color: colors.muted, fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
   hero: { borderRadius: 28, minHeight: 265, overflow: 'hidden', padding: 24 },
@@ -227,5 +229,6 @@ const styles = StyleSheet.create({
   importHeader: { alignItems: 'center', flexDirection: 'row', gap: 9 },
   gameRow: { alignItems: 'center', backgroundColor: colors.paper, borderBottomColor: colors.line, borderBottomWidth: 1, flexDirection: 'row', gap: 12, padding: 12 },
   gameMark: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 12, height: 42, justifyContent: 'center', width: 42 },
+  gameImage: { borderRadius: 12, height: 42, width: 42 },
   gameDetails: { flex: 1 },
 });

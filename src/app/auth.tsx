@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MeepleLogo } from '@decodadev02/meepleui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { IconButton, Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -67,7 +67,7 @@ export default function AuthScreen() {
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <IconButton icon="arrow-left" iconColor={colors.ink} accessibilityLabel="Volver" onPress={goBack} style={styles.back} />
-          <View style={styles.heroIcon}><MaterialCommunityIcons name="dice-multiple-outline" size={36} color={colors.forest} /></View>
+          <View style={styles.heroIcon}><MeepleLogo size={68} /></View>
           <Text style={styles.eyebrow}>CUENTA MEEPVP</Text>
           <Text style={styles.title}>{isSignup ? 'Cada partida cuenta.' : 'Qué bueno verte de nuevo.'}</Text>
           <Text style={styles.subtitle}>{isSignup ? 'Creá una cuenta para guardar tus estadísticas y compartir planillas.' : 'Iniciá sesión para ver tu historial y tus estadísticas.'}</Text>
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { flexGrow: 1, padding: 20, paddingBottom: 36 },
   back: { marginLeft: -12 },
-  heroIcon: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 22, height: 68, justifyContent: 'center', marginTop: 22, width: 68 },
+  heroIcon: { alignItems: 'center', justifyContent: 'center', marginTop: 22, width: 68 },
   eyebrow: { color: colors.orangeInk, fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginTop: 22 },
   title: { color: colors.ink, fontSize: 34, fontWeight: '800', letterSpacing: -1, marginTop: 8 },
   subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 8 },

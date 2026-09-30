@@ -74,7 +74,7 @@ export default function JoinScreen() {
     scanLocked.current = true;
     const tableCode = parseTableCode(data);
     if (!tableCode) {
-      setError('Este QR no pertenece a una mesa de MeppVP.');
+      setError('Este QR no pertenece a una mesa de MeepVP.');
       scanLocked.current = false;
       return;
     }

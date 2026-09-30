@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import { ScoreButton } from '@decodadev02/scoreui';
+import { ScoreButton } from '@decodadev02/meepleui';
 
 type Props = {
   children: ReactNode;
@@ -12,7 +12,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-// Keeps screen-level button layout while all button visuals and states come from scoreUI.
+// Keeps screen-level button layout while visuals and states come from MeepleUI.
 export function AppButton({ children, mode, icon, disabled, loading, onPress, style }: Props) {
   return (
     <View style={style}>

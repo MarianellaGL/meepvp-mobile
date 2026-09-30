@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreSwitch, ScoreTextField as TextInput } from '@decodadev02/scoreui';
+import { ScoreSwitch, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { IconButton, SegmentedButtons, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

@@ -1,27 +1,25 @@
 {
   "expo": {
-    "name": "MeppVP",
+    "name": "MeepVP",
     "slug": "meepvp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#100D19",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-notifications", ["expo-image-picker", { "photosPermission": "Permitir que MeppVP lea una imagen de puntuación elegida por vos.", "cameraPermission": "Permitir que MeppVP fotografíe una tabla de puntuación.", "microphonePermission": false }], ["expo-camera", { "cameraPermission": "Permitir que MeppVP escanee el QR de una mesa.", "recordAudioAndroid": false, "barcodeScannerEnabled": true }]],
+    "plugins": ["expo-router", "expo-notifications", ["expo-image-picker", { "photosPermission": "Permitir que MeepVP use una foto elegida por vos para tu perfil, tablero o planilla.", "cameraPermission": "Permitir que MeepVP fotografíe una tabla de puntuación.", "microphonePermission": false }], ["expo-camera", { "cameraPermission": "Permitir que MeepVP escanee el QR de una mesa.", "recordAudioAndroid": false, "barcodeScannerEnabled": true }]],
     "scheme": "meepvp"
   }
 }

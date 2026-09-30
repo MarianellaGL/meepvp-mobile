@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, TextInput as NumberInput, View } from 'react-native';
+import { AppState, Image, Platform, ScrollView, StyleSheet, TextInput as NumberInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreCheckbox, ScoreTextField as TextInput } from '@decodadev02/scoreui';
+import { ScoreCheckbox, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 import { TableQRCode } from '@/components/TableQRCode';
-import { api, type ScoreSession } from '@/lib/api';
+import { api, baseURL, type ScoreSession } from '@/lib/api';
 
 function SessionDuration({ session }: { session: ScoreSession }) {
   const [extraSeconds, setExtraSeconds] = useState(0);
@@ -39,7 +40,7 @@ function QuickPoints({ playerId, manualPoints, disabled, onAdjust }: { playerId:
     if (!valid || disabled || saving) return;
     setSaving(true);
     setMessage('Guardando…');
-    try { await onAdjust(playerId, sign * points); setMessage('Guardado'); }
+    try { await onAdjust(playerId, sign * points); setMessage(`${sign > 0 ? '+' : ''}${sign * points} puntos · cambio guardado`); }
     catch { setMessage('No pudimos guardar. Reintentá.'); }
     finally { setSaving(false); }
   };
@@ -83,33 +84,91 @@ function ScoreValueInput({ name, value, kind, pointsPerUnit, disabled, onSave }:
 export default function ScoringScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const attemptedHostJoin = useRef(new Set<string>());
+  const scrollRef = useRef<ScrollView>(null);
+  const scoreEditorY = useRef(0);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
+  const [liveConnected, setLiveConnected] = useState(false);
   const {
     session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, refreshSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
     isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isPausingSession, isResumingSession, isUploadingBoardPhoto, isReopeningSession, isJoiningSession,
   } = useTableScoreStore();
+  const accountPlayerId = useAuthStore((state) => state.sessions.find((game) => game.id === sessionId)?.myPlayerId);
+  const accountUser = useAuthStore((state) => state.user);
   const selfName = (myPlayerName || username || 'Vos').trim();
   const isHost = !!session && !!table && table.code.toLocaleUpperCase() === session.tableCode.toLocaleUpperCase();
   const hostInSession = !!session?.players.some((player) => player.id === selfPlayerId);
 
   useEffect(() => { loadRules().catch(() => undefined); }, [loadRules]);
   useEffect(() => {
-    if (sessionId && session?.id !== sessionId) loadSession(sessionId).catch(() => undefined);
-  }, [sessionId, session?.id, loadSession]);
+    if (sessionId && session?.id !== sessionId) loadSession(sessionId, accountPlayerId).catch(() => undefined);
+  }, [sessionId, session?.id, accountPlayerId, loadSession]);
   useEffect(() => {
     if (!sessionId || session?.id !== sessionId || session.status === 'finished') return;
-    const timer = setInterval(() => refreshSession(sessionId).catch(() => undefined), 5000);
-    return () => clearInterval(timer);
+    let stopped = false;
+    let foreground = AppState.currentState === 'active';
+    let socket: WebSocket | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryDelay = 1000;
+    const connect = () => {
+      if (stopped || !foreground) return;
+      const connectedSocket = new WebSocket(`${baseURL.replace(/^http/, 'ws')}/ws`);
+      socket = connectedSocket;
+      connectedSocket.onopen = () => {
+        if (stopped || !foreground || socket !== connectedSocket) { connectedSocket.close(); return; }
+        retryDelay = 1000;
+        setLiveConnected(true);
+        connectedSocket.send(JSON.stringify({ type: 'room.join', payload: { room: `session:${sessionId}` } }));
+        refreshSession(sessionId).catch(() => undefined);
+      };
+      connectedSocket.onmessage = (event) => {
+        try {
+          const message = JSON.parse(String(event.data)) as { type?: string; payload?: { queryKey?: string[] } };
+          if (message.type === 'query.invalidate' && message.payload?.queryKey?.[0] === 'sessions' && message.payload.queryKey[1] === sessionId) refreshSession(sessionId).catch(() => undefined);
+        } catch { /* Ignore messages outside the session contract. */ }
+      };
+      connectedSocket.onerror = () => { if (socket === connectedSocket) setLiveConnected(false); };
+      connectedSocket.onclose = () => {
+        if (socket !== connectedSocket) return;
+        setLiveConnected(false);
+        if (!stopped && foreground) {
+          retryTimer = setTimeout(connect, retryDelay);
+          retryDelay = Math.min(retryDelay * 2, 15000);
+        }
+      };
+    };
+    connect();
+    const appState = AppState.addEventListener('change', (state) => {
+      foreground = state === 'active';
+      if (foreground) {
+        refreshSession(sessionId).catch(() => undefined);
+        if (retryTimer) clearTimeout(retryTimer);
+        if (!socket || socket.readyState >= WebSocket.CLOSING) connect();
+      } else {
+        if (retryTimer) clearTimeout(retryTimer);
+        socket?.close();
+      }
+    });
+    return () => {
+      stopped = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      appState.remove();
+      socket?.close();
+    };
   }, [sessionId, session?.id, session?.status, refreshSession]);
   useEffect(() => {
-    if (!session || !isHost || session.status !== 'active' || hostInSession || !selfName) return;
+    if (!sessionId || session?.id !== sessionId || session.status === 'finished') return;
+    const timer = setInterval(() => refreshSession(sessionId).catch(() => undefined), liveConnected ? 20000 : 5000);
+    return () => clearInterval(timer);
+  }, [sessionId, session?.id, session?.status, liveConnected, refreshSession]);
+  useEffect(() => {
+    if (!session || !isHost || accountUser || session.status !== 'active' || hostInSession || !selfName) return;
     const key = `${session.id}:${selfName.toLocaleLowerCase()}`;
     if (attemptedHostJoin.current.has(key)) return;
     attemptedHostJoin.current.add(key);
     joinSessionAsMe(selfName).catch(() => undefined);
-  }, [session, isHost, hostInSession, selfName, joinSessionAsMe]);
+  }, [session, isHost, accountUser, hostInSession, selfName, joinSessionAsMe]);
 
   async function pickBoardPhoto(source: 'camera' | 'library') {
     setPhotoError(null);
@@ -159,11 +218,12 @@ export default function ScoringScreen() {
   const isPaused = session.status === 'paused';
   const controlsDisabled = session.status !== 'active' || isUpdatingScore || isAdjustingPoints || isFinishingSession || isPausingSession;
   const selfPlayer = session.players.find((player) => player.id === selfPlayerId);
+  const myTotal = selfPlayer ? session.totals.find((item) => item.playerId === selfPlayer.id)?.total ?? 0 : null;
   const winners = isFinished ? (session.winners ?? []).map((result) => ({ ...result, name: session.players.find((player) => player.id === result.playerId)?.name ?? 'Jugador' })) : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} style={styles.backButton} />
           <Text style={styles.topLabel}>TABLA DE PUNTOS</Text>
@@ -198,11 +258,16 @@ export default function ScoringScreen() {
         {!isFinished && isHost && <View style={styles.pauseCard}>
           {isPaused ? <>
             <Text style={styles.pauseTitle}>Guardá cómo quedó el tablero</Text>
+            {myTotal !== null && <Text style={styles.durationHint}>Tus {myTotal} puntos siguen guardados. El reloj está detenido.</Text>}
             <Text style={styles.durationHint}>Quienes tengan la partida podrán ver la foto desde su celular.</Text>
             <Button mode="outlined" icon="camera" loading={isUploadingBoardPhoto} disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('camera')}>Tomar foto del tablero</Button>
             <Button mode="text" icon="image" disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('library')}>Elegir una foto</Button>
             <Button mode="contained" icon="play" loading={isResumingSession} disabled={isUploadingBoardPhoto || isResumingSession} onPress={() => resumeSession().catch(() => undefined)}>Reanudar partida</Button>
-          </> : <Button mode="outlined" icon="pause" loading={isPausingSession} disabled={controlsDisabled} onPress={() => pauseSession().catch(() => undefined)}>Pausar partida</Button>}
+          </> : <>
+            <Text style={styles.durationHint}>Al pausar se conserva el puntaje de todos y se detiene el tiempo jugado.</Text>
+            {selfPlayer && <Button mode="outlined" icon="pencil-outline" onPress={() => scrollRef.current?.scrollTo({ y: scoreEditorY.current, animated: true })}>Editar mis puntos</Button>}
+            <Button mode="contained" icon="pause" loading={isPausingSession} disabled={controlsDisabled} onPress={() => pauseSession().catch(() => undefined)}>Pausar partida</Button>
+          </>}
           {photoError && <Text style={styles.topError}>{photoError}</Text>}
         </View>}
 
@@ -223,7 +288,7 @@ export default function ScoringScreen() {
         {selfPlayer && (
           <View style={styles.myScoreCard}>
             <Text style={styles.myScoreLabel}>TUS PUNTOS · {selfPlayer.name}</Text>
-            <Text style={styles.myScoreTotal}>{session.totals.find((item) => item.playerId === selfPlayer.id)?.total ?? 0} puntos</Text>
+            <Text style={styles.myScoreTotal}>{myTotal} puntos</Text>
             <QuickPoints playerId={selfPlayer.id} manualPoints={session.manualPoints?.[selfPlayer.id] ?? 0} disabled={controlsDisabled} onAdjust={adjustPoints} />
           </View>
         )}
@@ -242,6 +307,7 @@ export default function ScoringScreen() {
               </View>
             ))}
           </View>
+          {!isFinished && !isPaused && selfPlayer && <Button mode="outlined" icon="pencil-outline" onPress={() => scrollRef.current?.scrollTo({ y: scoreEditorY.current, animated: true })}>Ir a mis puntos</Button>}
         </View>
 
         {!isFinished && isHost && (confirmFinish ? (
@@ -260,7 +326,7 @@ export default function ScoringScreen() {
         </View>
 
         {selfPlayer ? (
-          <View style={styles.playerCard}>
+          <View style={styles.playerCard} onLayout={(event) => { scoreEditorY.current = event.nativeEvent.layout.y; }}>
             <View style={styles.playerHeader}>
               <View style={styles.playerAvatar}><Text style={styles.avatarText}>{selfPlayer.name.charAt(0).toUpperCase()}</Text></View>
               <Text style={styles.playerName}>{selfPlayer.name} · Vos</Text>
@@ -274,6 +340,7 @@ export default function ScoringScreen() {
                 <ScoreValueInput key={field.id} name={field.name} kind={field.kind} pointsPerUnit={field.pointsPerUnit} value={value} disabled={controlsDisabled} onSave={(next) => updateScore(selfPlayer.id, field.id, next)} />
               );
             })}
+            <Button mode="contained" icon="arrow-up" onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}>Volver a partida</Button>
           </View>
         ) : <View style={styles.joinCard}><Text style={styles.durationHint}>Unite a la partida con tu nombre para cargar tus puntos.</Text>{!isHost && <Button mode="outlined" onPress={() => router.push('/join')}>Unirme a la partida</Button>}</View>}
 

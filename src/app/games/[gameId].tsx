@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
@@ -17,6 +17,7 @@ export default function GameRulesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const scoringRules = useTableScoreStore((state) => state.rules);
+  const game = useTableScoreStore((state) => state.collection.find((item) => item.bggId === id));
   const savedPDF = useTableScoreStore((state) => state.savedPDFs.find((pdf) => pdf.gameId === id));
   const gameSheets = scoringRules.filter((rule) => rule.bggId === id || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === String(name ?? '').trim().toLocaleLowerCase()));
 
@@ -53,6 +54,7 @@ export default function GameRulesScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>REGLAS DEL JUEGO</Text><View style={styles.topSpacer} /></View>
         <Text style={styles.title}>{name || 'Reglas del juego'}</Text>
+        {(game?.imageUrl || game?.thumbnailUrl) && <Image source={{ uri: game.imageUrl || game.thumbnailUrl }} style={styles.cover} resizeMode="contain" accessibilityLabel={`Carátula de ${game.name}`} />}
         <Text style={styles.subtitle}>Explorá preguntas y respuestas sobre reglas en BoardGameGeek.</Text>
 
         <View style={styles.emptyCard}>
@@ -107,6 +109,7 @@ const styles = StyleSheet.create({
   topLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   topSpacer: { width: 40 },
   title: { color: colors.ink, fontSize: 32, fontWeight: '800', letterSpacing: -1.1, marginTop: 6 },
+  cover: { alignSelf: 'center', width: 180, height: 220, borderRadius: 12, marginVertical: 8 },
   subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21, marginBottom: 7 },
   summaryCard: { alignItems: 'flex-start', backgroundColor: colors.paper, borderColor: colors.forest, borderRadius: 24, borderWidth: 1, padding: 20 },
   summaryIcon: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 15, height: 48, justifyContent: 'center', marginBottom: 12, width: 48 },

@@ -1,8 +1,15 @@
-# MeppVP Mobile
+# MeepVP Mobile
 
-Aplicación Expo SDK 57 para llevar puntuaciones de juegos de mesa, compartir planillas y consultar ganadores y estadísticas. Usa `@decodadev02/scoreui` y la [API de MeppVP](https://github.com/MarianellaGL/meepvp-api).
+Aplicación Expo SDK 57 para llevar puntuaciones de juegos de mesa, compartir planillas y consultar ganadores y estadísticas. Usa `@decodadev02/meepleui` y la [API de MeepVP](https://github.com/MarianellaGL/meepvp-api).
 
 ## Ejecutar en local
+
+Mientras `@decodadev02/meepleui` no esté publicado, esta rama usa el paquete
+local de `../MeepleUI/package-dist`. Antes de instalar dependencias, ejecutá
+`pnpm build:package` en `../MeepleUI`; después ejecutá `pnpm install` en esta
+app cada vez que cambie la biblioteca. Para una compilación independiente de
+ambos repositorios habrá que reemplazar la dependencia local por la versión
+publicada.
 
 Para usar la API desplegada en Render, configurá `EXPO_PUBLIC_API_URL` en `.env`
 con la URL HTTPS pública del servicio, sin `/docs` ni `/v1`. La app agrega las
@@ -33,6 +40,9 @@ El lector de imágenes usa `expo-text-extractor` y necesita una compilación nat
 
 El menú inferior muestra Inicio, Biblioteca, Nueva partida, Puntuar y Perfil.
 El historial se abre desde **Perfil → Historial de partidas**, con regreso al perfil.
+La biblioteca y el listado de juegos usan las carátulas que entrega BGG. El
+avatar se puede cambiar o quitar desde Perfil y se guarda solo en este
+dispositivo; la API todavía no guarda fotos de usuario.
 
 
 Al abrir la app se puede registrar una cuenta, iniciar sesión, continuar sin cuenta o unirse a una partida. Para unirse se escanea el QR de una partida activa o se ingresa el código de seis caracteres junto con el nombre del jugador. El QR contiene un enlace `meepvp://join?code=...`; el enlace directo requiere que la app esté instalada. La API resuelve ese código a la partida activa. Una partida terminada no genera QR y su código ya no permite unirse; aparece en Historial. El anfitrión puede finalizarla y la API devuelve el ganador o todos los jugadores empatados según la regla de puntuación.
