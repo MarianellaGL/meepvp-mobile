@@ -42,7 +42,7 @@ export default function PDFReaderScreen() {
   const scoringDraft = activeDocument ? extractScoringDraft(activeDocument) : null;
 
   async function saveCurrentPDF(pdf: PDFExtract) {
-    if (!name) throw new Error('Ingresá el nombre del juego para guardar este PDF.');
+    if (!name) throw new Error('Ingresá el nombre del juego para guardar el texto extraído.');
     await savePDF(name, resolvedGameId, pdf);
     setSavedStatus('Extracción guardada en este dispositivo. El archivo PDF original no se conserva.');
   }
@@ -171,9 +171,9 @@ export default function PDFReaderScreen() {
             </>}
             <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Ocultar texto' : 'Leer texto extraído'}</Button>
             {showFullText && <View style={styles.card}>{activeDocument === savedDocument && savedItem?.textTruncated && <Text style={styles.muted}>La copia guardada conserva las primeras 200.000 letras del texto extraído.</Text>}<Text selectable style={styles.bodyText}>{activeDocument.text || 'No pudimos encontrar texto en este PDF.'}</Text></View>}
-            <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.')).finally(() => setSaving(false)); }}>Guardar extracción en biblioteca</Button>
+            <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.')).finally(() => setSaving(false)); }}>Guardar texto extraído</Button>
             <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>{scoringDraft ? 'Revisar campos y crear planilla' : 'Crear planilla manual'}</Button>
-            {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el PDF o crear una planilla.</Text>}
+            {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el texto o crear una planilla.</Text>}
             <Text style={styles.muted}>{scoringDraft ? 'Los campos se cargarán en la planilla para que los revises antes de empezar una partida.' : 'Revisá el reglamento antes de agregar campos y puntos.'}</Text>
           </>
         )}
