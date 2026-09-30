@@ -11,7 +11,7 @@ import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 
 export default function GameRulesScreen() {
-  const { gameId, name } = useLocalSearchParams<{ gameId: string; name?: string }>();
+  const { gameId, name, imageUrl } = useLocalSearchParams<{ gameId: string; name?: string; imageUrl?: string }>();
   const id = Number(gameId);
   const [rules, setRules] = useState<GameRules | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +54,7 @@ export default function GameRulesScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>REGLAS DEL JUEGO</Text><View style={styles.topSpacer} /></View>
         <Text style={styles.title}>{name || 'Reglas del juego'}</Text>
-        {(game?.imageUrl || game?.thumbnailUrl) && <Image source={{ uri: game.imageUrl || game.thumbnailUrl }} style={styles.cover} resizeMode="contain" accessibilityLabel={`Carátula de ${game.name}`} />}
+        {(game?.imageUrl || game?.thumbnailUrl || imageUrl) && <Image source={{ uri: game?.imageUrl || game?.thumbnailUrl || imageUrl }} style={styles.cover} resizeMode="contain" accessibilityLabel={`Carátula de ${name ?? game?.name ?? 'juego'}`} />}
         <Text style={styles.subtitle}>Explorá preguntas y respuestas sobre reglas en BoardGameGeek.</Text>
 
         <View style={styles.emptyCard}>

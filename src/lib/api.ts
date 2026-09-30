@@ -20,12 +20,13 @@ export type BGGCollection = {
   retryAfterSeconds?: number;
   games?: CollectionGame[];
 };
+export type BGGSearch = BGGCollection;
 
 export type APIHealth = { status: 'ok' };
 
 export type RulesThread = { id: number; title: string; author: string; posts: number; url: string };
 export type GameRules = { status: 'ready' | 'processing'; retryAfterSeconds?: number; forumUrl?: string; totalThreads: number; threads: RulesThread[] };
-export type ScoringSuggestion = { gameName: string; fields: { name: string; kind: FieldKind; pointsPerUnit: number }[]; notes: string[] };
+export type ScoringSuggestion = { gameName: string; fields: { name: string; kind: FieldKind; pointsPerUnit: number }[]; notes: string[]; source?: 'ai' };
 export type Rulebook = { id: string; source: string; sourceId: string; name: string; language: 'en' | 'fr'; edition?: string; pdfUrl: string; createdAt: string; updatedAt: string };
 export type RulebookSearch = { results: Rulebook[]; cached: boolean };
 export type PDFExtract = { fileName: string; pages: number; text: string; scoringExcerpts: string[]; scoringSuggestion?: ScoringSuggestion; rulebook?: Rulebook };
@@ -137,11 +138,14 @@ export const api = {
   },
   claimSession: (sessionId: string, playerId: string, hostToken: string) => request<{ status: 'ok' }>('/v1/me/claim-session', { method: 'POST', body: JSON.stringify({ sessionId, playerId, hostToken }) }),
   getCollection: (username: string, signal?: AbortSignal) => request<BGGCollection>(`/v1/bgg/collections/${encodeURIComponent(username)}`, { signal }),
+  searchGames: (query: string) => request<BGGSearch>(`/v1/bgg/search?query=${encodeURIComponent(query.trim())}`),
   getGameRules: (gameId: number) => request<GameRules>(`/v1/bgg/games/${gameId}/rules`),
-  async extractPDF(asset: DocumentPickerAsset): Promise<PDFExtract> {
+  interpretScoringText: (gameName: string, text: string) => request<PDFExtract>('/v1/ocr/scoring-text', { method: 'POST', body: JSON.stringify({ gameName, text }) }),
+  async extractPDF(asset: DocumentPickerAsset, gameName = ''): Promise<PDFExtract> {
     const data = new FormData();
     if (Platform.OS === 'web' && asset.file) data.append('file', asset.file, asset.name);
     else data.append('file', new File(asset.uri), asset.name);
+    if (gameName.trim()) data.append('gameName', gameName.trim());
     let response: Response;
     try {
       response = await fetch(`${baseURL}/v1/pdf/extract`, { method: 'POST', body: data });

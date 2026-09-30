@@ -75,7 +75,7 @@ export default function PDFReaderScreen() {
     }
     setLoading(true);
     try {
-      const result = await api.extractPDF(asset);
+      const result = await api.extractPDF(asset, name);
       setDocument(result);
       setRetryAsset(null);
       if (!name && result.scoringSuggestion?.gameName) setGameNameDraft(result.scoringSuggestion.gameName);
@@ -115,7 +115,7 @@ export default function PDFReaderScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE REGLAMENTOS</Text><View style={styles.topSpacer} /></View>
         <Text style={styles.title}>Leer un reglamento</Text>
-        <Text style={styles.subtitle}>Elegí un PDF. Podemos importar tablas de puntos y proponer planillas para los reglamentos base de Everdell, Catan y Wingspan.</Text>
+        <Text style={styles.subtitle}>Elegí un PDF. Leemos sus reglas de puntos y, cuando hay evidencia suficiente, preparamos una planilla para que la revises.</Text>
         {activeDocument?.rulebook && <Text style={styles.muted}>Fuente: {activeDocument.rulebook.source} · {activeDocument.rulebook.language.toUpperCase()} · {activeDocument.rulebook.name}</Text>}
 
         <View style={styles.card}>
@@ -123,7 +123,7 @@ export default function PDFReaderScreen() {
           <Text style={styles.cardTitle}>{loading ? selectedFile : activeDocument?.fileName ?? selectedFile ?? 'Elegí un PDF'}</Text>
           {activeDocument && !loading && <Text style={styles.muted}>{activeDocument.pages} páginas</Text>}
           <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>{activeDocument ? 'Elegir otro PDF' : 'Elegir PDF'}</Button>
-          <Text style={styles.muted}>Los PDF escaneados también se leen y pueden tardar un poco más. Al guardar, conservamos el texto extraído y la propuesta, no el archivo original.</Text>
+          <Text style={styles.muted}>Los PDF escaneados también se leen y pueden tardar un poco más. Si hay asistencia de IA, se envían fragmentos del texto extraído para proponer campos. Al guardar, conservamos el texto y la propuesta, no el archivo original.</Text>
         </View>
 
         {loading && <View style={styles.loadingCard}><ActivityIndicator size="large" /><Text style={styles.muted}>Subiendo y leyendo {selectedFile ?? 'el PDF'}…</Text></View>}
@@ -134,6 +134,7 @@ export default function PDFReaderScreen() {
           <>
             {activeDocument.scoringSuggestion && scoringDraft ? <View style={styles.card}>
               <Text style={styles.heading}>Propuesta para {scoringDraft.gameName}</Text>
+              {activeDocument.scoringSuggestion.source === 'ai' && <Text style={styles.muted}>Propuesta asistida por IA. Confirmá los campos y puntos con el reglamento.</Text>}
               {scoringDraft.fields.map((field) => <Text key={field.name} style={styles.bodyText}>
                 {field.name}: {field.kind === 'manual' ? 'puntaje final de la categoría' : `${field.pointsPerUnit} punto${field.pointsPerUnit === 1 ? '' : 's'} ${field.kind === 'checkbox' ? 'si tenés el bono' : 'por unidad'}`}
               </Text>)}

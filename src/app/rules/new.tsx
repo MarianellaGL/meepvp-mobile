@@ -71,7 +71,7 @@ export default function NewRuleScreen() {
           <View style={styles.formCard}>
             <Text style={styles.sectionLabel}>DESDE {pdfDraft.fileName.toUpperCase()}</Text>
             {importedDraft ? <>
-              <Text style={styles.shareCopy}>Cargamos {importedDraft.fields.length} campos para que los revises antes de guardar.</Text>
+              <Text style={styles.shareCopy}>Cargamos {importedDraft.fields.length} campos para que los revises antes de guardar{pdfDraft.scoringSuggestion?.source === 'ai' ? ' (propuesta asistida por IA)' : ''}.</Text>
               {importedDraft.notes.map((note) => <Text key={note} style={styles.shareCopy}>{note}</Text>)}
             </> : <>
               <Text style={styles.shareCopy}>{pdfDraft.scoringExcerpts.length ? `Usá estos fragmentos como referencia. Revisá ${fromImage === '1' ? 'la imagen' : 'el PDF'} antes de asignar puntos.` : 'No encontramos fragmentos sobre puntuación en el texto extraído.'}</Text>
