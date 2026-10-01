@@ -13,14 +13,14 @@ import { colors } from '@/theme';
 
 export default function GamesScreen() {
   const collection = useTableScoreStore((state) => state.collection);
-  const ownRules = useTableScoreStore((state) => state.rules);
+  const availableRules = useTableScoreStore((state) => state.rules);
   const hasRestored = useTableScoreStore((state) => state.hasRestored);
   const { query, changeQuery, search, searchResult, hasSearched } = useGameDiscovery();
   const searching = hasSearched && searchResult.isFetching;
   const localResults = query.trim() ? collection.filter((game) => game.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : collection;
   const entries = buildGameDiscoveryEntries(
     hasSearched ? [...(searchResult.data?.games ?? []), ...localResults] : localResults,
-    hasSearched ? ownRules.filter((rule) => rule.gameName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : [],
+    hasSearched ? availableRules.filter((rule) => rule.gameName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : [],
     hasSearched ? searchResult.data?.communityRules ?? [] : [],
     hasSearched ? searchResult.data?.rulebooks ?? [] : [],
   );
@@ -29,7 +29,7 @@ export default function GamesScreen() {
   function openGame(entry: GameDiscoveryEntry) {
     const { game } = entry;
     if (game.bggId > 0) router.push({ pathname: '/games/[gameId]', params: { gameId: String(game.bggId), name: game.name, ...(game.imageUrl || game.thumbnailUrl ? { imageUrl: game.imageUrl || game.thumbnailUrl } : {}) } });
-    else if (entry.ownSheets.length) router.push({ pathname: '/sessions/new', params: { ruleId: entry.ownSheets[0].id } });
+    else if (entry.availableSheets.length) router.push({ pathname: '/sessions/new', params: { ruleId: entry.availableSheets[0].id } });
     else if (entry.communitySheets.length) router.push({ pathname: '/community/rules', params: { game: game.name } });
     else if (entry.rulebooks.length) router.push({ pathname: '/rulebooks', params: { game: game.name } });
     else router.push({ pathname: '/rules/new', params: { game: game.name } });

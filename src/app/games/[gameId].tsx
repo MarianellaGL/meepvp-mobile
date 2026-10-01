@@ -38,7 +38,7 @@ export default function GameRulesScreen() {
 
         <View style={styles.sectionHeader}><Text style={styles.eyebrow}>PARA JUGAR</Text><Text variant="headlineSmall" style={styles.heading}>Planillas</Text></View>
         {gameSheets.length ? gameSheets.map((sheet) => <MeepleLibraryEntry key={sheet.id} title={sheet.name} detail={`${sheet.fields.length} campos · Lista para jugar`} onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: sheet.id } })} />) :
-          <Text style={styles.actionCopy}>Todavía no hay una planilla propia para este juego.</Text>}
+          <Text style={styles.actionCopy}>Todavía no hay una planilla disponible para este juego.</Text>}
         <View style={styles.sectionHeader}><Text style={styles.eyebrow}>PARA CREAR UNA PLANILLA</Text><Text variant="headlineSmall" style={styles.heading}>Elegí una fuente</Text></View>
         <MeepleLibraryEntry title="Planillas de la comunidad" detail="Ver las disponibles para este juego" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })} />
         <MeepleLibraryEntry title="Reglamentos" detail="Elegí la edición y revisá los puntos" onPress={() => router.push({ pathname: '/rulebooks', params: { gameId: String(id), game: String(name ?? '') } })} />

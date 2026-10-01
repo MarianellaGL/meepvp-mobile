@@ -3,7 +3,7 @@ import type { CollectionGame, Rulebook, ScoringRule } from './api';
 export type GameDiscoveryEntry = {
   key: string;
   game: CollectionGame;
-  ownSheets: ScoringRule[];
+  availableSheets: ScoringRule[];
   communitySheets: ScoringRule[];
   rulebooks: Rulebook[];
   sources: string[];
@@ -16,7 +16,7 @@ function normalizedName(value: string): string {
 
 export function buildGameDiscoveryEntries(
   games: CollectionGame[],
-  ownSheets: ScoringRule[],
+  availableSheets: ScoringRule[],
   communitySheets: ScoringRule[],
   rulebooks: Rulebook[],
 ): GameDiscoveryEntry[] {
@@ -33,7 +33,7 @@ export function buildGameDiscoveryEntries(
       if (game.bggId > 0) byId.set(game.bggId, existing);
       return existing;
     }
-    const entry: GameDiscoveryEntry = { key: game.bggId > 0 ? `bgg:${game.bggId}` : `name:${nameKey}`, game, ownSheets: [], communitySheets: [], rulebooks: [], sources: [], needsReview: false };
+    const entry: GameDiscoveryEntry = { key: game.bggId > 0 ? `bgg:${game.bggId}` : `name:${nameKey}`, game, availableSheets: [], communitySheets: [], rulebooks: [], sources: [], needsReview: false };
     entries.set(entry.key, entry);
     if (!byName.has(nameKey)) byName.set(nameKey, entry);
     if (game.bggId > 0) byId.set(game.bggId, entry);
@@ -48,19 +48,25 @@ export function buildGameDiscoveryEntries(
   }
 
   games.forEach(addGame);
-  ownSheets.forEach((rule) => fromName(rule.gameName, rule.bggId).ownSheets.push(rule));
-  communitySheets.forEach((rule) => fromName(rule.gameName, rule.bggId).communitySheets.push(rule));
+  availableSheets.forEach((rule) => {
+    const entry = fromName(rule.gameName, rule.bggId);
+    (rule.isPublic ? entry.communitySheets : entry.availableSheets).push(rule);
+  });
+  communitySheets.forEach((rule) => {
+    const entry = fromName(rule.gameName, rule.bggId);
+    if (!entry.availableSheets.some((sheet) => sheet.id === rule.id) && !entry.communitySheets.some((sheet) => sheet.id === rule.id)) entry.communitySheets.push(rule);
+  });
   rulebooks.forEach((book) => fromName(book.name).rulebooks.push(book));
 
   return [...entries.values()].map((entry) => {
     const sources: string[] = [];
-    if (entry.ownSheets.length) sources.push(`Mi planilla · ${entry.ownSheets.length === 1 ? 'lista para jugar' : `${entry.ownSheets.length} listas para jugar`}`);
+    if (entry.availableSheets.length) sources.push(`Planilla disponible · ${entry.availableSheets.length === 1 ? 'lista para jugar' : `${entry.availableSheets.length} listas para jugar`}`);
     if (entry.communitySheets.length) sources.push(`Comunidad · ${entry.communitySheets.length} ${entry.communitySheets.length === 1 ? 'planilla' : 'planillas'}`);
     if (entry.rulebooks.length) sources.push(`Reglamento · ${entry.rulebooks.length === 1 ? 'disponible' : `${entry.rulebooks.length} disponibles`}`);
     if (!sources.length) sources.push('Sin planilla confiable');
-    if (!entry.ownSheets.length && !entry.communitySheets.length) sources.push('Podés revisar una propuesta editable');
+    if (!entry.availableSheets.length && !entry.communitySheets.length) sources.push('Podés revisar una propuesta editable');
     entry.sources = sources;
-    entry.needsReview = !entry.ownSheets.length && !entry.communitySheets.length;
+    entry.needsReview = !entry.availableSheets.length && !entry.communitySheets.length;
     return entry;
   });
 }

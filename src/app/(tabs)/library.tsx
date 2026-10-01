@@ -35,17 +35,17 @@ export default function LibraryScreen() {
       ListHeaderComponent={<View style={styles.header}>
         <Text style={styles.eyebrow}>TU BIBLIOTECA</Text>
         <Text style={styles.title}>Juegos y planillas</Text>
-        <Text style={styles.subtitle}>Elegí un juego para ver sus fuentes o retomá una planilla guardada.</Text>
+        <Text style={styles.subtitle}>Elegí un juego para ver sus fuentes o usá una planilla disponible.</Text>
         <MeepleLibraryEntry title="Buscar un juego" detail="Tu colección y otras fuentes" onPress={() => router.push('/games')} />
         <MeepleLibraryEntry title="Crear una planilla" detail="Prepará una planilla para jugar" onPress={() => router.push('/rules/new')} />
 
         <View style={styles.sectionHeading}>
-          <View><Text style={styles.sectionLabel}>MIS PLANILLAS</Text><Text style={styles.count}>{rules.length} guardadas</Text></View>
+          <View><Text style={styles.sectionLabel}>PLANILLAS DISPONIBLES</Text><Text style={styles.count}>{rules.length} {rules.length === 1 ? 'planilla' : 'planillas'}</Text></View>
           <IconButton icon="refresh" iconColor={colors.forest} disabled={loadingRules} accessibilityLabel="Actualizar planillas" onPress={() => void refreshRules()} />
         </View>
         {rulesError && <Text style={styles.error}>{rulesError}</Text>}
         {loadingRules && !rules.length && <ScoreSkeleton variant="list" />}
-        {!loadingRules && !rules.length && <Text style={styles.emptyCopy}>Todavía no hay planillas guardadas.</Text>}
+        {!loadingRules && !rules.length && <Text style={styles.emptyCopy}>Todavía no hay planillas disponibles.</Text>}
         {rules.map((rule) => <MeepleLibraryEntry key={rule.id} title={rule.gameName} detail={`${rule.name} · ${rule.fields.length} campos`} onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: rule.id } })} />)}
 
         {!!savedPDFs.length && <View style={styles.savedSection}>
