@@ -41,8 +41,8 @@ El lector de imágenes usa `expo-text-extractor` y necesita una compilación nat
 El menú inferior muestra Inicio, Biblioteca, Nueva partida, Puntuar y Perfil.
 El historial se abre desde **Perfil → Historial de partidas**, con regreso al perfil.
 La biblioteca y el listado de juegos usan las carátulas que entrega BGG. El
-avatar se puede cambiar o quitar desde Perfil y se guarda solo en este
-dispositivo; la API todavía no guarda fotos de usuario.
+avatar se puede cambiar o quitar desde Perfil; se sincroniza con la cuenta
+cuando el usuario inició sesión y se guarda localmente en modo invitado.
 
 
 Al abrir la app se puede registrar una cuenta, iniciar sesión, continuar sin cuenta o unirse a una partida. Para unirse se escanea el QR de una partida activa o se ingresa el código de seis caracteres junto con el nombre del jugador. El QR contiene un enlace `meepvp://join?code=...`; el enlace directo requiere que la app esté instalada. La API resuelve ese código a la partida activa. Una partida terminada no genera QR y su código ya no permite unirse; aparece en Historial. El anfitrión puede finalizarla y la API devuelve el ganador o todos los jugadores empatados según la regla de puntuación.
@@ -89,14 +89,26 @@ Si el proveedor falla, devuelve coincidencias guardadas e indica que son una
 copia local. No necesita el token de BGG. Una búsqueda sin coincidencias guardadas
 puede fallar si el proveedor no responde.
 
-El lector muestra la fuente junto con la propuesta. **Crear planilla** abre los
+El lector muestra la fuente junto con la propuesta. **Revisar campos y crear planilla** abre los
 campos editables existentes: nombres, tipos, puntos por unidad y condición de
 victoria. Revisá y corregí la propuesta; recién al guardar se crea la planilla
 persistente con su `rulebookId`, que luego podés usar en una partida. El texto
 extraído queda en la biblioteca del dispositivo; el servidor no guarda el PDF.
-Este flujo requiere desplegar la nueva versión de la API para aplicar la
-migración del catálogo. Otros reglamentos se completan con tablas detectadas o
-campos manuales; no hay inferencia general por IA.
+Otros reglamentos se completan con tablas detectadas o campos manuales. Si no
+hay una estructura confiable, **Proponer plantilla editable con IA** intenta
+generar campos a partir del texto extraído y los muestra antes de abrir el
+editor. La IA puede devolver una propuesta vacía; en ese caso se conserva la
+opción manual.
+
+## Estado de datos y pantallas
+
+`src/hooks/` contiene la lógica de búsqueda BGG, foro de reglas, catálogo,
+comunidad y lectores PDF/imagen. TanStack Query mantiene consultas y mutaciones
+de estos flujos; `src/lib/queryClient.ts` configura su caché. Las pantallas en
+`src/app/` muestran los estados y manejan navegación y campos de formulario.
+Zustand conserva la partida activa, el usuario local, los borradores y las
+copias disponibles sin conexión; migrar esas operaciones exige preservar su
+persistencia y sincronización existentes.
 
 
 El lector conserva la extracción de tablas impresas y acepta propuestas revisadas del backend para los reglamentos base en inglés de Everdell, Catan y Wingspan. Everdell precarga cinco categorías de puntos finales. Catan precarga contadores de poblados, ciudades y cartas de victoria, y marcas para los dos bonos. Podés revisar y editar los campos antes de guardar la planilla. Las notas explican los desempates de Everdell y la victoria de Catan en el propio turno: la app todavía no los automatiza. Las expansiones y el modo solitario se revisan manualmente. Para PDFs guardados antes de esta actualización, elegí nuevamente el archivo para recibir la propuesta.

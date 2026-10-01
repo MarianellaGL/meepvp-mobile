@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Image, Platform, ScrollView, StyleSheet, TextInput as NumberInput, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { Image, ScrollView, StyleSheet, TextInput as NumberInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreCheckbox, ScoreTextField as TextInput } from '@decodadev02/meepleui';
+import { MeepleDisclosure, ScoreCheckbox, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,7 +11,9 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 import { TableQRCode } from '@/components/TableQRCode';
-import { api, baseURL, type ScoreSession } from '@/lib/api';
+import { api, type ScoreSession } from '@/lib/api';
+import { useSessionLiveSync } from '@/hooks/useSessionLiveSync';
+import { useBoardPhotoPicker } from '@/hooks/useBoardPhotoPicker';
 
 function SessionDuration({ session }: { session: ScoreSession }) {
   const [extraSeconds, setExtraSeconds] = useState(0);
@@ -87,14 +88,14 @@ export default function ScoringScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const scoreEditorY = useRef(0);
   const [confirmFinish, setConfirmFinish] = useState(false);
-  const [photoError, setPhotoError] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
-  const [liveConnected, setLiveConnected] = useState(false);
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
   const {
     session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, refreshSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
     isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isPausingSession, isResumingSession, isUploadingBoardPhoto, isReopeningSession, isJoiningSession,
   } = useTableScoreStore();
   const accountPlayerId = useAuthStore((state) => state.sessions.find((game) => game.id === sessionId)?.myPlayerId);
+  const { photoError, pickBoardPhoto } = useBoardPhotoPicker(saveBoardPhoto);
   const accountUser = useAuthStore((state) => state.user);
   const selfName = (myPlayerName || username || 'Vos').trim();
   const isHost = !!session && !!table && table.code.toLocaleUpperCase() === session.tableCode.toLocaleUpperCase();
@@ -104,64 +105,7 @@ export default function ScoringScreen() {
   useEffect(() => {
     if (sessionId && session?.id !== sessionId) loadSession(sessionId, accountPlayerId).catch(() => undefined);
   }, [sessionId, session?.id, accountPlayerId, loadSession]);
-  useEffect(() => {
-    if (!sessionId || session?.id !== sessionId || session.status === 'finished') return;
-    let stopped = false;
-    let foreground = AppState.currentState === 'active';
-    let socket: WebSocket | null = null;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let retryDelay = 1000;
-    const connect = () => {
-      if (stopped || !foreground) return;
-      const connectedSocket = new WebSocket(`${baseURL.replace(/^http/, 'ws')}/ws`);
-      socket = connectedSocket;
-      connectedSocket.onopen = () => {
-        if (stopped || !foreground || socket !== connectedSocket) { connectedSocket.close(); return; }
-        retryDelay = 1000;
-        setLiveConnected(true);
-        connectedSocket.send(JSON.stringify({ type: 'room.join', payload: { room: `session:${sessionId}` } }));
-        refreshSession(sessionId).catch(() => undefined);
-      };
-      connectedSocket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(String(event.data)) as { type?: string; payload?: { queryKey?: string[] } };
-          if (message.type === 'query.invalidate' && message.payload?.queryKey?.[0] === 'sessions' && message.payload.queryKey[1] === sessionId) refreshSession(sessionId).catch(() => undefined);
-        } catch { /* Ignore messages outside the session contract. */ }
-      };
-      connectedSocket.onerror = () => { if (socket === connectedSocket) setLiveConnected(false); };
-      connectedSocket.onclose = () => {
-        if (socket !== connectedSocket) return;
-        setLiveConnected(false);
-        if (!stopped && foreground) {
-          retryTimer = setTimeout(connect, retryDelay);
-          retryDelay = Math.min(retryDelay * 2, 15000);
-        }
-      };
-    };
-    connect();
-    const appState = AppState.addEventListener('change', (state) => {
-      foreground = state === 'active';
-      if (foreground) {
-        refreshSession(sessionId).catch(() => undefined);
-        if (retryTimer) clearTimeout(retryTimer);
-        if (!socket || socket.readyState >= WebSocket.CLOSING) connect();
-      } else {
-        if (retryTimer) clearTimeout(retryTimer);
-        socket?.close();
-      }
-    });
-    return () => {
-      stopped = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      appState.remove();
-      socket?.close();
-    };
-  }, [sessionId, session?.id, session?.status, refreshSession]);
-  useEffect(() => {
-    if (!sessionId || session?.id !== sessionId || session.status === 'finished') return;
-    const timer = setInterval(() => refreshSession(sessionId).catch(() => undefined), liveConnected ? 20000 : 5000);
-    return () => clearInterval(timer);
-  }, [sessionId, session?.id, session?.status, liveConnected, refreshSession]);
+  useSessionLiveSync(sessionId, session, refreshSession);
   useEffect(() => {
     if (!session || !isHost || accountUser || session.status !== 'active' || hostInSession || !selfName) return;
     const key = `${session.id}:${selfName.toLocaleLowerCase()}`;
@@ -169,23 +113,6 @@ export default function ScoringScreen() {
     attemptedHostJoin.current.add(key);
     joinSessionAsMe(selfName).catch(() => undefined);
   }, [session, isHost, accountUser, hostInSession, selfName, joinSessionAsMe]);
-
-  async function pickBoardPhoto(source: 'camera' | 'library') {
-    setPhotoError(null);
-    try {
-      if (source === 'camera' && Platform.OS !== 'web') {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) throw new Error('Necesitamos permiso para fotografiar el tablero.');
-      }
-      const picked = source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.6 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6 });
-      if (picked.canceled || !picked.assets[0]) return;
-      await saveBoardPhoto(picked.assets[0]);
-    } catch (cause) {
-      setPhotoError(cause instanceof Error ? cause.message : 'No pudimos guardar la foto.');
-    }
-  }
 
   if (!session || session.id !== sessionId) {
     return (
@@ -260,12 +187,14 @@ export default function ScoringScreen() {
             <Text style={styles.pauseTitle}>Guardá cómo quedó el tablero</Text>
             {myTotal !== null && <Text style={styles.durationHint}>Tus {myTotal} puntos siguen guardados. El reloj está detenido.</Text>}
             <Text style={styles.durationHint}>Quienes tengan la partida podrán ver la foto desde su celular.</Text>
-            <Button mode="outlined" icon="camera" loading={isUploadingBoardPhoto} disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('camera')}>Tomar foto del tablero</Button>
-            <Button mode="text" icon="image" disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('library')}>Elegir una foto</Button>
             <Button mode="contained" icon="play" loading={isResumingSession} disabled={isUploadingBoardPhoto || isResumingSession} onPress={() => resumeSession().catch(() => undefined)}>Reanudar partida</Button>
+            <MeepleDisclosure title="Guardar foto del tablero" expanded={showPhotoOptions} onPress={() => setShowPhotoOptions((shown) => !shown)} />
+            {showPhotoOptions && <View style={styles.photoActions}>
+              <Button mode="outlined" icon="camera" loading={isUploadingBoardPhoto} disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('camera')}>Tomar foto</Button>
+              <Button mode="text" icon="image" disabled={isUploadingBoardPhoto} onPress={() => pickBoardPhoto('library')}>Elegir de la galería</Button>
+            </View>}
           </> : <>
             <Text style={styles.durationHint}>Al pausar se conserva el puntaje de todos y se detiene el tiempo jugado.</Text>
-            {selfPlayer && <Button mode="outlined" icon="pencil-outline" onPress={() => scrollRef.current?.scrollTo({ y: scoreEditorY.current, animated: true })}>Editar mis puntos</Button>}
             <Button mode="contained" icon="pause" loading={isPausingSession} disabled={controlsDisabled} onPress={() => pauseSession().catch(() => undefined)}>Pausar partida</Button>
           </>}
           {photoError && <Text style={styles.topError}>{photoError}</Text>}
@@ -318,7 +247,7 @@ export default function ScoringScreen() {
               <Button mode="contained" loading={isFinishingSession} disabled={isUpdatingScore || isAdjustingPoints || isFinishingSession || isPausingSession || isResumingSession || isUploadingBoardPhoto} onPress={() => finishSession().then(() => setConfirmFinish(false)).catch(() => undefined)}>Terminar partida</Button>
             </View>
           </View>
-        ) : <Button mode="outlined" icon="flag-checkered" disabled={isUpdatingScore || isAdjustingPoints || isPausingSession || isResumingSession || isUploadingBoardPhoto} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Terminar partida</Button>)}
+        ) : <Button mode="text" icon="flag-checkered" disabled={isUpdatingScore || isAdjustingPoints || isPausingSession || isResumingSession || isUploadingBoardPhoto} onPress={() => setConfirmFinish(true)} style={styles.finishButton}>Terminar partida</Button>)}
 
         <View style={styles.sectionHeading}>
           <Text style={styles.eyebrow}>EL DETALLE</Text>
@@ -370,6 +299,7 @@ const styles = StyleSheet.create({
   durationValue: { color: colors.ink, fontSize: 27, fontWeight: '800' },
   durationHint: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   pauseCard: { backgroundColor: colors.mint, borderRadius: 18, gap: 9, marginTop: 15, padding: 15 },
+  photoActions: { gap: 9 },
   pauseTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   photoCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 9, marginTop: 15, padding: 15 },
   boardPhoto: { backgroundColor: colors.canvas, borderRadius: 13, height: 230, width: '100%' },

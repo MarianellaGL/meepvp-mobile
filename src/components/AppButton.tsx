@@ -18,7 +18,7 @@ export function AppButton({ children, mode, icon, disabled, loading, onPress, st
     <View style={style}>
       <ScoreButton
         label={String(children)}
-        variant={mode === 'outlined' || mode === 'text' || mode === 'contained-tonal' ? 'secondary' : 'primary'}
+        variant={mode === 'text' ? 'tertiary' : mode === 'outlined' || mode === 'contained-tonal' ? 'secondary' : 'primary'}
         icon={icon}
         disabled={disabled}
         loading={loading}

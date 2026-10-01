@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MeepleGameTile, ScoreSkeleton } from '@decodadev02/meepleui';
@@ -8,50 +7,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton as Button } from '@/components/AppButton';
 import { AssistStatus } from '@/components/AssistStatus';
-import { api, type CollectionGame } from '@/lib/api';
+import { useGameDiscovery } from '@/hooks/useGameDiscovery';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 
 export default function GamesScreen() {
   const collection = useTableScoreStore((state) => state.collection);
   const hasRestored = useTableScoreStore((state) => state.hasRestored);
-  const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<CollectionGame[] | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [searchMessage, setSearchMessage] = useState<string | null>(null);
-  const requestVersion = useRef(0);
+  const { query, changeQuery, search, searchResult, hasSearched } = useGameDiscovery();
+  const searching = hasSearched && searchResult.isFetching;
+  const searchResults = hasSearched && searchResult.data?.status === 'ready' ? searchResult.data.games ?? [] : null;
+  const searchMessage = searchResult.error?.message ??
+    (searchResult.data?.status === 'processing' ? `BoardGameGeek está preparando la búsqueda. Reintentá en ${searchResult.data.retryAfterSeconds ?? 5} segundos.` :
+      searchResults?.length === 0 ? 'No encontramos juegos con ese nombre en BoardGameGeek.' : null);
   const localResults = query.trim() ? collection.filter((game) => game.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : collection;
   const displayedGames = searchResults ?? localResults;
-
-  async function searchBGG() {
-    const submittedQuery = query.trim();
-    if (submittedQuery.length < 2) return;
-    const version = ++requestVersion.current;
-    setSearching(true);
-    setSearchMessage(null);
-    try {
-      const result = await api.searchGames(submittedQuery);
-      if (version !== requestVersion.current) return;
-      if (result.status === 'processing') {
-        setSearchMessage(`BoardGameGeek está preparando la búsqueda. Reintentá en ${result.retryAfterSeconds ?? 5} segundos.`);
-      } else {
-        setSearchResults(result.games ?? []);
-        if (!result.games?.length) setSearchMessage('No encontramos juegos con ese nombre en BoardGameGeek.');
-      }
-    } catch (cause) {
-      if (version === requestVersion.current) setSearchMessage(cause instanceof Error ? cause.message : 'No pudimos buscar en BoardGameGeek.');
-    } finally {
-      if (version === requestVersion.current) setSearching(false);
-    }
-  }
-
-  function changeQuery(value: string) {
-    requestVersion.current += 1;
-    setQuery(value);
-    setSearchResults(null);
-    setSearchMessage(null);
-    setSearching(false);
-  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -70,9 +40,9 @@ export default function GamesScreen() {
             </View>
             <Text style={styles.title}>Listado de juegos</Text>
             <Text style={styles.subtitle}>{collection.length} {collection.length === 1 ? 'juego en tu colección' : 'juegos en tu colección'}</Text>
-            <TextInput mode="outlined" label="Buscar un juego" value={query} onChangeText={changeQuery} returnKeyType="search" onSubmitEditing={() => searchBGG().catch(() => undefined)} style={styles.searchInput} />
+            <TextInput mode="outlined" label="Buscar un juego" value={query} onChangeText={changeQuery} returnKeyType="search" onSubmitEditing={search} style={styles.searchInput} />
             <Text style={styles.searchHelp}>Al escribir filtrás tu colección. Buscá en BGG para encontrar otros juegos y sus fotos.</Text>
-            <Button mode="outlined" icon="magnify" loading={searching} disabled={searching || query.trim().length < 2} onPress={() => searchBGG().catch(() => undefined)}>Buscar en todo BGG</Button>
+            <Button mode="outlined" icon="magnify" loading={searching} disabled={searching || query.trim().length < 2} onPress={search}>Buscar en todo BGG</Button>
             {searching && <AssistStatus kind="working" title="Buscando en BGG" description="Consultamos el catálogo y preparamos los resultados para que elijas el juego correcto." />}
             {searchMessage && <AssistStatus title="Búsqueda de BGG" description={searchMessage} />}
             {!searching && searchResults !== null && searchResults.length > 0 && <AssistStatus kind="ready" title={`${searchResults.length} juegos encontrados en BGG`} description="Estos resultados pertenecen al catálogo de BGG. Elegí uno para ver su ficha y crear una planilla." />}

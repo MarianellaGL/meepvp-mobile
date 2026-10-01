@@ -1,144 +1,23 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreTextField as TextInput } from '@decodadev02/meepleui';
+import { MeepleDisclosure, MeepleScoringPreview, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api, type PDFExtract } from '@/lib/api';
-import { extractScoringTable } from '@/lib/scoringTable';
-import { extractScoringDraft } from '@/lib/scoringDraft';
-import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { usePDFReader } from '@/hooks/usePDFReader';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 import { AssistStatus } from '@/components/AssistStatus';
 
 export default function PDFReaderScreen() {
   const { gameId, game, rulebookId } = useLocalSearchParams<{ gameId?: string; game?: string; rulebookId?: string }>();
-  const [document, setDocument] = useState<PDFExtract | null>(null);
-  const [loading, setLoading] = useState(false);
+  const reader = usePDFReader({ gameId, game, rulebookId });
+  const { activeDocument, savedDocument, savedItem, scoringTable, scoringDraft,
+    scoringNotes, setScoringNotes, canSuggest, gameNameDraft, changeGameName, name, selectedFile, retryAsset, savedStatus, error,
+    loading, saving, suggesting, pickPDF, importAsset, saveCurrent, saveAndBuild, suggestWithAI } = reader;
   const [showFullText, setShowFullText] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [retryAsset, setRetryAsset] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
-  const [replacingDocument, setReplacingDocument] = useState(false);
-  const [gameNameDraft, setGameNameDraft] = useState(game ?? '');
-  const [saving, setSaving] = useState(false);
-  const [suggesting, setSuggesting] = useState(false);
-  const [savedStatus, setSavedStatus] = useState<string | null>(null);
-  const collection = useTableScoreStore((state) => state.collection);
-  const savedPDFs = useTableScoreStore((state) => state.savedPDFs);
-  const savePDF = useTableScoreStore((state) => state.savePDF);
-  const setPDFDraft = useTableScoreStore((state) => state.setPDFDraft);
-  const pdfDraft = useTableScoreStore((state) => state.pdfDraft);
-  const name = gameNameDraft.trim();
-  const matchedGame = collection.find((item) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
-  const resolvedGameId = Number(gameId) > 0 ? Number(gameId) : matchedGame?.bggId;
-  const savedItem = savedPDFs.find((item) => resolvedGameId ? item.gameId === resolvedGameId : item.gameName.toLocaleLowerCase() === name.toLocaleLowerCase());
-  const savedDocument = savedItem?.document;
-  const catalogDocument = rulebookId && pdfDraft?.rulebook?.id === rulebookId ? pdfDraft : null;
-  const activeDocument = document ?? (replacingDocument ? null : catalogDocument ?? savedDocument) ?? null;
-  const scoringTable = activeDocument ? extractScoringTable(activeDocument) : null;
-  const scoringDraft = activeDocument ? extractScoringDraft(activeDocument) : null;
-
-  async function saveCurrentPDF(pdf: PDFExtract) {
-    if (!name) throw new Error('Ingresá el nombre del juego para guardar el texto extraído.');
-    await savePDF(name, resolvedGameId, pdf);
-    setSavedStatus('Extracción guardada en este dispositivo. El archivo PDF original no se conserva.');
-  }
-
-  async function saveAndBuild() {
-    if (!activeDocument || !name) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await saveCurrentPDF(activeDocument);
-      setPDFDraft(activeDocument);
-      router.push({ pathname: '/rules/new', params: { fromPdf: '1', game: name, ...(resolvedGameId ? { gameId: String(resolvedGameId) } : {}) } });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function suggestWithAI() {
-    if (!activeDocument) return;
-    setSuggesting(true);
-    setError(null);
-    try {
-      const result = await api.suggestScoringDraft(name, activeDocument.text);
-      if (!result.scoringSuggestion) {
-        setError('La IA no encontró suficientes reglas de puntuación en este texto. Revisá el reglamento o empezá una planilla manual.');
-        return;
-      }
-      const updated = { ...activeDocument, scoringSuggestion: result.scoringSuggestion };
-      if (!extractScoringDraft(updated)) {
-        setError('La propuesta no tiene campos válidos. Probá de nuevo o creá la planilla manualmente.');
-        return;
-      }
-      setDocument(updated);
-      setPDFDraft(updated);
-      if (name) {
-        try { await saveCurrentPDF(updated); }
-        catch { setError('La propuesta está lista, pero no pudimos guardar el texto en este dispositivo.'); }
-      }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'No pudimos generar la propuesta con IA.');
-    } finally {
-      setSuggesting(false);
-    }
-  }
-
-  async function importAsset(asset: DocumentPicker.DocumentPickerAsset) {
-    setError(null);
-    setRetryAsset(asset);
-    setSelectedFile(asset.name);
-    setReplacingDocument(true);
-    setDocument(null);
-    setSavedStatus(null);
-    if (asset.size && asset.size > 20 * 1024 * 1024) {
-      setError('Elegí un PDF de menos de 20 MB.');
-      setRetryAsset(null);
-      return;
-    }
-    setLoading(true);
-    try {
-      const result = await api.extractPDF(asset, name);
-      setDocument(result);
-      setRetryAsset(null);
-      if (!name && result.scoringSuggestion?.gameName) setGameNameDraft(result.scoringSuggestion.gameName);
-      setPDFDraft(result);
-      setShowFullText(false);
-      if (name) {
-        try { await saveCurrentPDF(result); }
-        catch { setError('Leímos el PDF, pero no pudimos guardar la extracción en este dispositivo.'); }
-      }
-    } catch (cause) {
-      const reason = cause instanceof Error ? cause.message : 'Error desconocido.';
-      setError(`No pudimos importar el PDF: ${reason}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function pickPDF() {
-    setError(null);
-    try {
-      const picked = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
-      if (picked.canceled) return;
-      const asset = picked.assets[0];
-      if (!asset) {
-        setError('No seleccionaste ningún archivo.');
-        return;
-      }
-      await importAsset(asset);
-    } catch (cause) {
-      const reason = cause instanceof Error ? cause.message : 'Error desconocido.';
-      setError(`No pudimos seleccionar el PDF: ${reason}`);
-    }
-  }
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -149,11 +28,11 @@ export default function PDFReaderScreen() {
         {activeDocument?.rulebook && <Text style={styles.muted}>Fuente: {activeDocument.rulebook.source} · {activeDocument.rulebook.language.toUpperCase()} · {activeDocument.rulebook.name}</Text>}
 
         <View style={styles.card}>
-          <TextInput label="Nombre del juego" value={gameNameDraft} onChangeText={(value) => { setGameNameDraft(value); setSavedStatus(null); }} mode="outlined" />
+          <TextInput label="Nombre del juego" value={gameNameDraft} onChangeText={changeGameName} mode="outlined" />
           <Text style={styles.cardTitle}>{loading ? selectedFile : activeDocument?.fileName ?? selectedFile ?? 'Elegí un PDF'}</Text>
           {activeDocument && !loading && <Text style={styles.muted}>{activeDocument.pages} páginas</Text>}
-          <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>{activeDocument ? 'Elegir otro PDF' : 'Elegir PDF'}</Button>
-          <Text style={styles.muted}>Los PDF escaneados también se leen y pueden tardar un poco más. Si hay asistencia de IA, se envían fragmentos del texto extraído para proponer campos. Al guardar, conservamos el texto y la propuesta, no el archivo original.</Text>
+          {!activeDocument && <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>Elegir PDF</Button>}
+          <Text style={styles.muted}>Leemos las reglas de puntos del PDF, incluso si está escaneado. Antes de guardar una planilla vas a revisar los campos.</Text>
         </View>
 
         {loading && <View style={styles.loadingCard}><ActivityIndicator size="large" /><Text style={styles.muted}>Leyendo {selectedFile ?? 'el PDF'} y buscando reglas de puntuación…</Text></View>}
@@ -167,14 +46,7 @@ export default function PDFReaderScreen() {
               title={activeDocument.scoringSuggestion?.source === 'ai' ? 'Propuesta asistida por IA' : activeDocument.scoringSuggestion ? 'Planilla sugerida desde el reglamento' : scoringDraft ? 'Tabla de puntos detectada' : 'Texto listo para revisión'}
               description={scoringDraft ? `${scoringDraft.fields.length} campos detectados. Vas a poder corregir nombres, tipos y puntos antes de guardar.` : 'No encontramos una estructura de puntos confiable. Podés pedir una propuesta con IA a partir del texto o crear la planilla manualmente.'}
             />
-            {!scoringDraft && activeDocument.text.trim().length >= 40 && <Button mode="contained" icon="auto-fix" loading={suggesting} disabled={suggesting || saving} onPress={suggestWithAI}>Proponer plantilla editable con IA</Button>}
-            {activeDocument.scoringSuggestion && scoringDraft ? <View style={styles.card}>
-              <Text style={styles.heading}>Propuesta para {scoringDraft.gameName}</Text>
-              {scoringDraft.fields.map((field) => <Text key={field.name} style={styles.bodyText}>
-                {field.name}: {field.kind === 'manual' ? 'puntaje final de la categoría' : `${field.pointsPerUnit} punto${field.pointsPerUnit === 1 ? '' : 's'} ${field.kind === 'checkbox' ? 'si tenés el bono' : 'por unidad'}`}
-              </Text>)}
-              {scoringDraft.notes.map((note) => <Text key={note} style={styles.muted}>{note}</Text>)}
-            </View> : scoringTable ? <>
+            {activeDocument.scoringSuggestion && scoringDraft ? <MeepleScoringPreview gameName={scoringDraft.gameName || name} fields={scoringDraft.fields} notes={scoringDraft.notes} /> : scoringTable ? <>
               <Text style={styles.heading}>Tabla de puntuación</Text>
               <Text style={styles.muted}>{scoringTable.categories.length} categorías detectadas. Podés corregirlas al crear la planilla. Cada jugador cargará sus puntos cuando se una a la partida.</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tableScroll}>
@@ -193,18 +65,31 @@ export default function PDFReaderScreen() {
                   </View>
                 </View>
               </ScrollView>
-            </> : <>
-              <Text style={styles.heading}>Fragmentos sobre puntuación</Text>
-              {activeDocument.scoringExcerpts.length ? activeDocument.scoringExcerpts.map((excerpt, index) => (
-                <View key={`${index}-${excerpt.slice(0, 12)}`} style={styles.excerpt}><Text style={styles.excerptText}>{excerpt}</Text></View>
-              )) : <View style={styles.card}><Text style={styles.muted}>No encontramos fragmentos sobre puntos. Podés leer el texto completo abajo.</Text></View>}
-            </>}
-            <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Ocultar texto' : 'Leer texto extraído'}</Button>
-            {showFullText && <View style={styles.card}>{activeDocument === savedDocument && savedItem?.textTruncated && <Text style={styles.muted}>La copia guardada conserva las primeras 200.000 letras del texto extraído.</Text>}<Text selectable style={styles.bodyText}>{activeDocument.text || 'No pudimos encontrar texto en este PDF.'}</Text></View>}
-            <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving} onPress={() => { setSaving(true); setError(null); saveCurrentPDF(activeDocument).catch((cause) => setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.')).finally(() => setSaving(false)); }}>Guardar texto extraído</Button>
-            <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving} onPress={saveAndBuild}>{scoringDraft ? 'Revisar campos y crear planilla' : 'Crear planilla manual'}</Button>
+            </> : null}
+            <TextInput
+              label="Fragmentos sobre puntuación"
+              value={scoringNotes}
+              onChangeText={setScoringNotes}
+              placeholder={'• Cada moneda vale 1 punto.\n• Cada objetivo cumplido vale 3 puntos.'}
+              helperText="Una regla por línea. Corregí o agregá viñetas antes de pedir la propuesta."
+              mode="outlined"
+              multiline
+              numberOfLines={6}
+              style={styles.scoringInput}
+            />
+            {!scoringDraft && <Button mode="contained" icon="auto-fix" loading={suggesting} disabled={!canSuggest || suggesting || saving} onPress={suggestWithAI}>Proponer plantilla editable con IA</Button>}
+            {!scoringDraft && !canSuggest && <Text style={styles.muted}>{!name ? 'Ingresá el nombre del juego para pedir la propuesta.' : 'Escribí al menos 40 caracteres de reglas de puntuación en las viñetas.'}</Text>}
+            <Button mode={scoringDraft ? 'contained' : 'text'} icon="table-edit" loading={saving} disabled={!name || saving || suggesting} onPress={saveAndBuild}>{scoringDraft ? 'Revisar campos y crear planilla' : 'Crear planilla manual'}</Button>
             {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el texto o crear una planilla.</Text>}
-            <Text style={styles.muted}>{scoringDraft ? 'Los campos se cargarán en la planilla para que los revises antes de empezar una partida.' : 'Revisá el reglamento antes de agregar campos y puntos.'}</Text>
+            <MeepleDisclosure title="Más opciones del reglamento" expanded={showMoreOptions} onPress={() => setShowMoreOptions((shown) => !shown)} />
+            {showMoreOptions && <View style={styles.card}>
+              {scoringDraft && <Button mode="text" icon="auto-fix" loading={suggesting} disabled={!canSuggest || suggesting || saving} onPress={suggestWithAI}>Actualizar propuesta con IA</Button>}
+              <Button mode="outlined" icon="file-pdf-box" disabled={loading || saving || suggesting} onPress={pickPDF}>Elegir otro PDF</Button>
+              <Button mode="outlined" icon={showFullText ? 'chevron-up' : 'text-box-search-outline'} onPress={() => setShowFullText((shown) => !shown)}>{showFullText ? 'Ocultar texto' : 'Leer texto extraído'}</Button>
+              {showFullText && <View>{activeDocument === savedDocument && savedItem?.textTruncated && <Text style={styles.muted}>La copia guardada conserva las primeras 200.000 letras del texto extraído.</Text>}<Text selectable style={styles.bodyText}>{activeDocument.text || 'No pudimos encontrar texto en este PDF.'}</Text></View>}
+              <Button mode="outlined" icon="content-save-outline" loading={saving} disabled={!name || saving || suggesting} onPress={saveCurrent}>Guardar texto extraído</Button>
+              <Text style={styles.muted}>Se guarda el texto y la propuesta en este dispositivo. El PDF original no se conserva.</Text>
+            </View>}
           </>
         )}
       </ScrollView>
@@ -229,8 +114,7 @@ const styles = StyleSheet.create({
   error: { color: colors.error },
   saved: { color: colors.forest, fontSize: 13, fontWeight: '700' },
   heading: { color: colors.ink, fontSize: 21, fontWeight: '800', marginTop: 12 },
-  excerpt: { backgroundColor: colors.mint, borderRadius: 15, padding: 14 },
-  excerptText: { color: colors.ink, fontSize: 14, lineHeight: 21 },
+  scoringInput: { minHeight: 152 },
   bodyText: { color: colors.ink, fontSize: 13, lineHeight: 20 },
   tableScroll: { paddingBottom: 3 },
   table: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 15, borderWidth: 1, overflow: 'hidden' },

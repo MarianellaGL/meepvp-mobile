@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { MeepleUIProvider } from '@decodadev02/meepleui';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { queryClient } from '@/lib/queryClient';
 
 export default function RootLayout() {
   const restore = useTableScoreStore((state) => state.restore);
@@ -25,8 +27,10 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <MeepleUIProvider>
-      <Stack screenOptions={{ headerShown: false }} />
-    </MeepleUIProvider>
+    <QueryClientProvider client={queryClient}>
+      <MeepleUIProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </MeepleUIProvider>
+    </QueryClientProvider>
   );
 }

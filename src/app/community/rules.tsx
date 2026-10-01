@@ -1,23 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api, type ScoringRule } from '@/lib/api';
-import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { useCommunityRules } from '@/hooks/useCommunityRules';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 
 export default function CommunityRulesScreen() {
   const { game, gameId, planId } = useLocalSearchParams<{ game?: string; gameId?: string; planId?: string }>();
-  const [query, setQuery] = useState(game ?? '');
-  const [rules, setRules] = useState<ScoringRule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const bggId = Number(gameId) > 0 ? Number(gameId) : undefined;
-  const setScheduledGameRule = useTableScoreStore((state) => state.setScheduledGameRule);
+  const { query, setQuery, search, results, attachToPlan } = useCommunityRules(game, bggId);
+  const rules = results.data ?? [];
+  const loading = results.isFetching;
+  const error = attachToPlan.error ?? results.error;
 
   async function handleUseRule(ruleId: string) {
     if (!planId) {
@@ -25,29 +22,10 @@ export default function CommunityRulesScreen() {
       return;
     }
     try {
-      await setScheduledGameRule(planId, ruleId);
+      await attachToPlan.mutateAsync({ planId, ruleId });
       router.replace('/schedule');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not add this sheet to your scheduled game.');
-    }
+    } catch { /* Mutation error is displayed below. */ }
   }
-
-  const search = useCallback(async (term: string) => {
-    setLoading(true);
-    setError(null);
-    try { setRules(await api.searchCommunityRules(term.trim(), bggId)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'No pudimos buscar planillas de la comunidad.'); }
-    finally { setLoading(false); }
-  }, [bggId]);
-
-  useEffect(() => {
-    let active = true;
-    api.searchCommunityRules(game ?? '', bggId)
-      .then((found) => { if (active) setRules(found); })
-      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'No pudimos buscar planillas de la comunidad.'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [game, bggId]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -56,12 +34,12 @@ export default function CommunityRulesScreen() {
         <Text style={styles.title}>Reglas de puntos de victoria</Text>
         <Text style={styles.subtitle}>Encontrá planillas compartidas por otros jugadores para contar los puntos de tus partidas.</Text>
         <View style={styles.searchCard}>
-          <TextInput label="Buscar por juego o planilla" placeholder="Wingspan, Azul…" value={query} onChangeText={setQuery} onSubmitEditing={() => search(query)} returnKeyType="search" mode="outlined" />
-          <Button mode="contained" icon="magnify" loading={loading} disabled={loading} onPress={() => search(query)}>Buscar planillas</Button>
+          <TextInput label="Buscar por juego o planilla" placeholder="Wingspan, Azul…" value={query} onChangeText={setQuery} onSubmitEditing={search} returnKeyType="search" mode="outlined" />
+          <Button mode="contained" icon="magnify" loading={loading} disabled={loading} onPress={search}>Buscar planillas</Button>
         </View>
 
         {loading ? <ActivityIndicator size="large" style={styles.loader} /> : error ? (
-          <View style={styles.card}><Text style={styles.error}>{error}</Text><Button mode="outlined" onPress={() => search(query)}>Reintentar</Button></View>
+          <View style={styles.card}><Text style={styles.error}>{error.message}</Text><Button mode="outlined" onPress={search}>Reintentar</Button></View>
         ) : rules.length ? (
           <>
             <Text style={styles.count}>{rules.length} {rules.length === 1 ? 'planilla compartida' : 'planillas compartidas'}</Text>

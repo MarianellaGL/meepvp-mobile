@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MeepleDisclosure } from '@decodadev02/meepleui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api, type GameRules } from '@/lib/api';
+import { useGameRules } from '@/hooks/useGameRules';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
@@ -13,40 +14,19 @@ import { AppButton as Button } from '@/components/AppButton';
 export default function GameRulesScreen() {
   const { gameId, name, imageUrl } = useLocalSearchParams<{ gameId: string; name?: string; imageUrl?: string }>();
   const id = Number(gameId);
-  const [rules, setRules] = useState<GameRules | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const rulesQuery = useGameRules(id);
+  const rules = rulesQuery.data;
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [showMoreSources, setShowMoreSources] = useState(false);
+  const [showForum, setShowForum] = useState(false);
   const scoringRules = useTableScoreStore((state) => state.rules);
   const game = useTableScoreStore((state) => state.collection.find((item) => item.bggId === id));
   const savedPDF = useTableScoreStore((state) => state.savedPDFs.find((pdf) => pdf.gameId === id));
   const gameSheets = scoringRules.filter((rule) => rule.bggId === id || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === String(name ?? '').trim().toLocaleLowerCase()));
 
-  const loadRules = useCallback(async () => {
-    if (!Number.isSafeInteger(id) || id <= 0) {
-      setError('El ID del juego no es válido.');
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try { setRules(await api.getGameRules(id)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'No pudimos cargar las conversaciones de BGG.'); }
-    finally { setLoading(false); }
-  }, [id]);
-
-  useEffect(() => {
-    let active = true;
-    const request = Number.isSafeInteger(id) && id > 0 ? api.getGameRules(id) : Promise.reject(new Error('El ID del juego no es válido.'));
-    request
-      .then((result) => { if (active) setRules(result); })
-      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'No pudimos cargar las conversaciones de BGG.'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [id]);
-
   async function openURL(url: string) {
     try { await Linking.openURL(url); }
-    catch { setError('No pudimos abrir BoardGameGeek en este dispositivo.'); }
+    catch { setLinkError('No pudimos abrir BoardGameGeek en este dispositivo.'); }
   }
 
   return (
@@ -65,38 +45,31 @@ export default function GameRulesScreen() {
             <Button mode="contained" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: sheet.id } })}>Empezar partida</Button>
           </View>
         )) : <View style={styles.actionCard}><Text style={styles.actionTitle}>Todavía no hay una planilla</Text><Text style={styles.actionCopy}>Podés buscar una de la comunidad o crear la tuya con un reglamento.</Text></View>}
-        <Button mode="outlined" icon="account-group-outline" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })}>Buscar planillas de la comunidad</Button>
-
         <View style={styles.sectionHeader}><Text style={styles.eyebrow}>PARA CREAR UNA PLANILLA</Text><Text variant="headlineSmall" style={styles.heading}>Elegí una fuente</Text></View>
         <View style={styles.actionCard}>
           <Text style={styles.actionTitle}>Reglamento</Text>
-          <Text style={styles.actionCopy}>Buscá una edición en el catálogo o subí tu propio PDF. Vas a revisar los campos antes de guardar.</Text>
+          <Text style={styles.actionCopy}>Buscá la edición correcta y revisá sus campos de puntuación antes de guardar.</Text>
           <Button mode="contained" icon="book-search-outline" onPress={() => router.push({ pathname: '/rulebooks', params: { gameId: String(id), game: String(name ?? '') } })}>Buscar reglamento</Button>
-          <Button mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Subir mi PDF</Button>
           {savedPDF && <Button mode="outlined" icon="text-box-check-outline" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Retomar texto guardado</Button>}
           {savedPDF && <Text style={styles.actionCopy}>Texto guardado: {savedPDF.document.fileName}</Text>}
         </View>
-        <View style={styles.actionCard}>
-          <Text style={styles.actionTitle}>Otras formas de empezar</Text>
-          <Text style={styles.actionCopy}>Leé una foto de la tabla de puntos o cargá los campos manualmente.</Text>
+        <MeepleDisclosure title="Otras formas de crear una planilla" expanded={showMoreSources} onPress={() => setShowMoreSources((shown) => !shown)} />
+        {showMoreSources && <View style={styles.actionCard}>
+          <Button mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Subir mi PDF</Button>
           <Button mode="outlined" icon="image-search-outline" onPress={() => router.push({ pathname: '/images/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Leer tabla de puntos</Button>
-          <Button mode="outlined" icon="table-edit" onPress={() => router.push({ pathname: '/rules/new', params: { gameId: String(id), game: String(name ?? '') } })}>Crear planilla manual</Button>
-        </View>
+          <Button mode="outlined" icon="account-group-outline" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })}>Planillas de la comunidad</Button>
+          <Button mode="outlined" icon="table-edit" onPress={() => router.push({ pathname: '/rules/new', params: { gameId: String(id), game: String(name ?? '') } })}>Crear manualmente</Button>
+        </View>}
 
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryIcon}><MaterialCommunityIcons name="forum-outline" size={27} color={colors.forest} /></View>
-          <Text style={styles.summaryCount}>{rules?.status === 'ready' ? rules.totalThreads : '—'}</Text>
-          <Text style={styles.summaryLabel}>CONVERSACIONES SOBRE REGLAS</Text>
-          <Text style={styles.summaryCopy}>La comunidad puede aclarar dudas. Consultá el reglamento para confirmar las reglas oficiales.</Text>
-        </View>
-
+        <MeepleDisclosure title="Dudas sobre las reglas" detail={rules?.status === 'ready' ? `${rules.totalThreads} conversaciones en BGG` : 'Foro de BoardGameGeek'} expanded={showForum} onPress={() => setShowForum((shown) => !shown)} />
+        {showForum && <>
+        <Text style={styles.actionCopy}>La comunidad puede aclarar dudas. Confirmá las reglas oficiales en el reglamento.</Text>
         <Button mode="outlined" icon="open-in-new" onPress={() => openURL(`https://boardgamegeek.com/boardgame/${id}/files`)}>Ver archivos de BGG</Button>
-
-        <View style={styles.sectionHeader}><Text style={styles.eyebrow}>FORO DE REGLAS</Text><Text variant="headlineSmall" style={styles.heading}>Conversaciones</Text></View>
-        {loading ? <ActivityIndicator size="large" style={styles.loader} /> : rules?.status === 'processing' ? (
-          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>BGG está preparando este foro</Text><Text style={styles.emptyCopy}>Reintentá en {rules.retryAfterSeconds ?? 5} segundos.</Text><Button mode="contained" onPress={loadRules}>Reintentar</Button></View>
-        ) : error ? (
-          <View style={styles.emptyCard}><Text style={styles.error}>{error}</Text><Button mode="contained" onPress={loadRules}>Reintentar</Button></View>
+        {linkError && <Text style={styles.error}>{linkError}</Text>}
+        {!Number.isSafeInteger(id) || id <= 0 ? <Text style={styles.error}>El ID del juego no es válido.</Text> : rulesQuery.isPending || rulesQuery.isFetching ? <ActivityIndicator size="large" style={styles.loader} /> : rules?.status === 'processing' ? (
+          <View style={styles.emptyCard}><Text style={styles.emptyTitle}>BGG está preparando este foro</Text><Text style={styles.emptyCopy}>Reintentá en {rules.retryAfterSeconds ?? 5} segundos.</Text><Button mode="contained" onPress={() => void rulesQuery.refetch()}>Reintentar</Button></View>
+        ) : rulesQuery.error ? (
+          <View style={styles.emptyCard}><Text style={styles.error}>{rulesQuery.error.message}</Text><Button mode="contained" onPress={() => void rulesQuery.refetch()}>Reintentar</Button></View>
         ) : rules?.threads.length ? (
           <>
             {rules.threads.slice(0, 20).map((thread) => (
@@ -112,6 +85,7 @@ export default function GameRulesScreen() {
           <View style={styles.emptyCard}><Text style={styles.emptyTitle}>Todavía no hay conversaciones</Text><Text style={styles.emptyCopy}>Podés consultar los archivos del juego para encontrar un reglamento.</Text></View>
         )}
         <Text style={styles.attribution}>Títulos y enlaces del foro de BoardGameGeek.</Text>
+        </>}
       </ScrollView>
     </SafeAreaView>
   );
