@@ -79,6 +79,9 @@ function apiErrorMessage(message: string | undefined, status: number): string {
     'could not download rulebook': 'No pudimos descargar ese reglamento. Reintentá o elegí otro.',
     'could not extract rulebook PDF': 'No pudimos leer ese PDF. Podés probar con otro reglamento.',
     'AI scoring assistant unavailable': 'La asistencia de IA no está disponible ahora. Podés crear la planilla manualmente.',
+    'AI provider quota exhausted': 'La asistencia de IA alcanzó su límite de uso. Podés continuar con una planilla manual.',
+    'AI provider rate limited': 'La asistencia de IA está ocupada. Esperá un momento y volvé a intentar.',
+    'AI provider authentication failed': 'La asistencia de IA no está configurada correctamente. Podés continuar con una planilla manual.',
     'could not generate scoring suggestion': 'No pudimos generar una propuesta con IA. Reintentá o creá la planilla manualmente.',
   };
   if (message && known[message]) return known[message];
@@ -94,7 +97,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   const body = await response.json().catch(() => null) as (T & { error?: string; retryAfterSeconds?: number }) | null;
   if (!response.ok && response.status !== 202) {
-    throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status, body?.retryAfterSeconds);
+    const headerRetry = Number(response.headers.get('Retry-After'));
+    const retryAfter = body?.retryAfterSeconds ?? (Number.isFinite(headerRetry) && headerRetry > 0 ? headerRetry : undefined);
+    throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status, retryAfter);
   }
   if (body === null) throw new APIRequestError('El servidor devolvió una respuesta inválida. Reintentá en unos minutos.', response.status);
   return body;

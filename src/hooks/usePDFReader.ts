@@ -3,7 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 
-import { api, type PDFExtract } from '@/lib/api';
+import { api, APIRequestError, type PDFExtract } from '@/lib/api';
 import { extractScoringDraft } from '@/lib/scoringDraft';
 import { extractScoringTable } from '@/lib/scoringTable';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
@@ -100,7 +100,11 @@ export function usePDFReader({ gameId, game, rulebookId, flow }: Params) {
         try { await persist(updated); }
         catch { setError('La propuesta está lista, pero no pudimos guardar el texto en este dispositivo.'); }
       }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'No pudimos generar la propuesta con IA.'); }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'No pudimos generar la propuesta con IA.';
+      setError(cause instanceof APIRequestError && cause.status === 429 && cause.retryAfterSeconds
+        ? `${message} Reintentá en ${cause.retryAfterSeconds} segundos.` : message);
+    }
   }
 
   async function importAsset(asset: DocumentPicker.DocumentPickerAsset) {
