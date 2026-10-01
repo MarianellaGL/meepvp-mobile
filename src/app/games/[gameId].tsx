@@ -7,12 +7,13 @@ import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGameRules } from '@/hooks/useGameRules';
+import { AppBottomNav, type AppTab } from '@/components/AppBottomNav';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
-import { colors } from '@/theme';
+import { colors, tokens } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 
 export default function GameRulesScreen() {
-  const { gameId, name, imageUrl } = useLocalSearchParams<{ gameId: string; name?: string; imageUrl?: string }>();
+  const { gameId, name, imageUrl, flow } = useLocalSearchParams<{ gameId: string; name?: string; imageUrl?: string; flow?: string }>();
   const id = Number(gameId);
   const rulesQuery = useGameRules(id);
   const rules = rulesQuery.data;
@@ -22,6 +23,21 @@ export default function GameRulesScreen() {
   const game = useTableScoreStore((state) => state.collection.find((item) => item.bggId === id));
   const savedPDF = useTableScoreStore((state) => state.savedPDFs.find((pdf) => pdf.gameId === id));
   const gameSheets = scoringRules.filter((rule) => rule.bggId === id || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === String(name ?? '').trim().toLocaleLowerCase()));
+  const gameName = String(name ?? game?.name ?? 'este juego');
+  const gameParams = { gameId: String(id), game: gameName, ...(flow === 'setup' ? { flow: 'setup' } : {}) };
+
+  function selectTab(tab: AppTab) {
+    if (tab === 'home') router.navigate('/');
+    else if (tab === 'library') router.navigate('/library');
+    else if (tab === 'profile') router.navigate('/profile');
+    else if (tab === 'new-game') router.push('/sessions/new');
+    else router.navigate('/tables');
+  }
+
+  function primaryAction() {
+    if (gameSheets.length) router.push({ pathname: '/sessions/new', params: { ruleId: gameSheets[0].id } });
+    else router.push({ pathname: '/games/sources', params: gameParams });
+  }
 
   async function openURL(url: string) {
     try { await Linking.openURL(url); }
@@ -31,19 +47,17 @@ export default function GameRulesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>REGLAS DEL JUEGO</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>{name || 'Reglas del juego'}</Text>
-        {(game?.imageUrl || game?.thumbnailUrl || imageUrl) && <Image source={{ uri: game?.imageUrl || game?.thumbnailUrl || imageUrl }} style={styles.cover} resizeMode="contain" accessibilityLabel={`Carátula de ${name ?? game?.name ?? 'juego'}`} />}
-        <Text style={styles.subtitle}>Elegí una planilla para jugar o prepará una desde el reglamento.</Text>
-
-        <View style={styles.sectionHeader}><Text style={styles.eyebrow}>PARA JUGAR</Text><Text variant="headlineSmall" style={styles.heading}>Planillas</Text></View>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>{flow === 'setup' ? 'PARTIDA · PLANILLA' : 'TU BIBLIOTECA'}</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>{gameName}</Text>
+        <Text style={styles.subtitle}>{game?.yearPublished ? `${game.yearPublished} · ` : ''}{game?.minPlayers && game?.maxPlayers ? `${game.minPlayers}–${game.maxPlayers} jugadores` : 'Juego de mesa'}</Text>
+        {(game?.imageUrl || game?.thumbnailUrl || imageUrl) && <Image source={{ uri: game?.imageUrl || game?.thumbnailUrl || imageUrl }} style={styles.cover} resizeMode="cover" accessibilityLabel={`Carátula de ${gameName}`} />}
+        <Text style={styles.eyebrow}>FUENTES PARA ESTE JUEGO</Text>
         {gameSheets.length ? gameSheets.map((sheet) => <MeepleLibraryEntry key={sheet.id} title={sheet.name} detail={`${sheet.fields.length} campos · Lista para jugar`} onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: sheet.id } })} />) :
-          <Text style={styles.actionCopy}>Todavía no hay una planilla disponible para este juego.</Text>}
-        <View style={styles.sectionHeader}><Text style={styles.eyebrow}>PARA CREAR UNA PLANILLA</Text><Text variant="headlineSmall" style={styles.heading}>Elegí una fuente</Text></View>
-        <MeepleLibraryEntry title="Planillas de la comunidad" detail="Ver las disponibles para este juego" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })} />
-        <MeepleLibraryEntry title="Reglamentos" detail="Elegí la edición y revisá los puntos" onPress={() => router.push({ pathname: '/rulebooks', params: { gameId: String(id), game: String(name ?? '') } })} />
-        {savedPDF && <MeepleLibraryEntry title="Retomar texto guardado" detail={savedPDF.document.fileName} onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })} />}
-        <MeepleLibraryEntry title="Usar otra fuente" detail="PDF, foto o creación manual" onPress={() => router.push({ pathname: '/games/sources', params: { gameId: String(id), game: String(name ?? '') } })} />
+          <Text style={styles.actionCopy}>Todavía no hay una planilla lista para jugar.</Text>}
+        <MeepleLibraryEntry title="Planilla de la comunidad" detail="Revisá una copia antes de usarla" onPress={() => router.push({ pathname: '/community/rules', params: gameParams })} />
+        <MeepleLibraryEntry title="Reglamento" detail="Consultá las reglas y prepará los puntos" onPress={() => router.push({ pathname: '/rulebooks', params: gameParams })} />
+        {savedPDF && <MeepleLibraryEntry title="PDF guardado" detail={savedPDF.document.fileName} onPress={() => router.push({ pathname: '/pdf/reader', params: gameParams })} />}
+        {!gameSheets.length && <MeepleLibraryEntry title="Usar otra fuente" detail="PDF, foto o planilla manual" onPress={() => router.push({ pathname: '/games/sources', params: gameParams })} />}
 
         <MeepleDisclosure title="Dudas sobre las reglas" detail={rules?.status === 'ready' ? `${rules.totalThreads} conversaciones en BGG` : 'Foro de BoardGameGeek'} expanded={showForum} onPress={() => setShowForum((shown) => !shown)} />
         {showForum && <>
@@ -71,18 +85,20 @@ export default function GameRulesScreen() {
         <Text style={styles.attribution}>Títulos y enlaces del foro de BoardGameGeek.</Text>
         </>}
       </ScrollView>
+      <View style={styles.bottomAction}><Button mode="contained" onPress={primaryAction}>{gameSheets.length ? 'Empezar partida' : 'Preparar planilla'}</Button></View>
+      {flow !== 'setup' && <AppBottomNav active="library" onSelect={selectTab} />}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { gap: 13, padding: 20, paddingBottom: 42 },
+  content: { gap: 13, padding: 24, paddingBottom: 42 },
   topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginLeft: -12 },
   topLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   topSpacer: { width: 40 },
-  title: { color: colors.ink, fontSize: 32, fontWeight: '800', letterSpacing: -1.1, marginTop: 6 },
-  cover: { alignSelf: 'center', width: 180, height: 220, borderRadius: 12, marginVertical: 8 },
+  title: { color: colors.ink, fontFamily: tokens.font.heading, fontSize: 27, lineHeight: 35, marginTop: 6 },
+  cover: { alignSelf: 'center', width: 124, height: 124, borderRadius: 12, marginVertical: 8 },
   subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21, marginBottom: 7 },
   summaryCard: { alignItems: 'flex-start', backgroundColor: colors.paper, borderColor: colors.forest, borderRadius: 24, borderWidth: 1, padding: 20 },
   summaryIcon: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 15, height: 48, justifyContent: 'center', marginBottom: 12, width: 48 },
@@ -106,4 +122,5 @@ const styles = StyleSheet.create({
   threadMeta: { color: colors.muted, fontSize: 11, marginTop: 4 },
   attribution: { color: colors.muted, fontSize: 11, marginTop: 9, textAlign: 'center' },
   error: { color: colors.error, textAlign: 'center' },
+  bottomAction: { backgroundColor: colors.canvas, paddingHorizontal: 24, paddingVertical: 12 },
 });

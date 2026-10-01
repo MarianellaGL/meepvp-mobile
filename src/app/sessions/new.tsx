@@ -61,9 +61,10 @@ export default function NewSessionScreen() {
           {rules.length ? (
             <ScoreDropdown label="Planilla de puntos" value={selectedRuleId} onChange={setSelectedRuleId} options={rules.map((rule) => ({ value: rule.id, label: `${rule.gameName} · ${rule.name} (${rule.fields.length} campos)` }))} />
           ) : (
-            <View style={styles.emptyRules}><Text style={styles.emptyTitle}>Todavía no hay planillas</Text><Text style={styles.emptyCopy}>Creá una y después volvé para empezar la partida.</Text><Button mode="outlined" icon="plus" onPress={() => router.push('/rules/new')}>Crear planilla</Button></View>
+            <View style={styles.emptyRules}><Text style={styles.emptyTitle}>Todavía no hay planillas</Text><Text style={styles.emptyCopy}>Buscá un juego para encontrar una planilla o prepararla desde sus reglas.</Text><Button mode="outlined" icon="magnify" onPress={() => router.push({ pathname: '/games', params: { flow: 'setup' } })}>Buscar un juego</Button></View>
           )}
         </View>
+        {!!rules.length && <Button mode="text" icon="magnify" onPress={() => router.push({ pathname: '/games', params: { flow: 'setup' } })}>Buscar otro juego</Button>}
 
         <Text style={styles.sectionLabel}>02 / JUGADORES</Text>
         <View style={styles.card}>

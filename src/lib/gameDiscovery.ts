@@ -64,7 +64,7 @@ export function buildGameDiscoveryEntries(
     if (entry.communitySheets.length) sources.push(`Comunidad · ${entry.communitySheets.length} ${entry.communitySheets.length === 1 ? 'planilla' : 'planillas'}`);
     if (entry.rulebooks.length) sources.push(`Reglamento · ${entry.rulebooks.length === 1 ? 'disponible' : `${entry.rulebooks.length} disponibles`}`);
     if (!sources.length) sources.push('Sin planilla confiable');
-    if (!entry.availableSheets.length && !entry.communitySheets.length) sources.push('Podés revisar una propuesta editable');
+    if (!entry.availableSheets.length && !entry.communitySheets.length && entry.rulebooks.length) sources.push('Podés revisar una propuesta editable');
     entry.sources = sources;
     entry.needsReview = !entry.availableSheets.length && !entry.communitySheets.length;
     return entry;

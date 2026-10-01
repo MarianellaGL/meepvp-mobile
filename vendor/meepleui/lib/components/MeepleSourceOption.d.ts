@@ -3,6 +3,7 @@ export type MeepleSourceOptionProps = {
     source: MeepleSource;
     onPress?: () => void;
     disabled?: boolean;
+    selected?: boolean;
 };
-/** Una opción por fila; la fila completa abre el siguiente paso. */
-export declare function MeepleSourceOption({ source, onPress, disabled }: MeepleSourceOptionProps): import("react").JSX.Element;
+/** Elección de fuente con icono semántico y una fila táctil completa. */
+export declare function MeepleSourceOption({ source, onPress, disabled, selected }: MeepleSourceOptionProps): import("react").JSX.Element;
