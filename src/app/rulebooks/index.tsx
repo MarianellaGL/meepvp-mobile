@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreTextField as TextInput } from '@decodadev02/meepleui';
-import { ActivityIndicator, IconButton, SegmentedButtons, Text } from 'react-native-paper';
+import { MeepleImportProcessing, ScoreTextField as TextInput } from '@decodadev02/meepleui';
+import { IconButton, SegmentedButtons, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { type Rulebook } from '@/lib/api';
@@ -38,7 +38,7 @@ export default function RulebookCatalogScreen() {
       <SegmentedButtons value={language} onValueChange={(value) => changeLanguage(value as 'en' | 'fr')} buttons={[{ value: 'en', label: 'Inglés', disabled: !!importing }, { value: 'fr', label: 'Francés', disabled: !!importing }]} />
       <Button mode="contained" icon="magnify" loading={loading} disabled={loading || !!importing} onPress={search}>Buscar reglamentos</Button>
       {error && <Text style={styles.error}>{error.message}</Text>}
-      {importing && <View style={styles.card}><ActivityIndicator /><Text style={styles.copy}>Leyendo el reglamento… Los PDF escaneados pueden tardar más.</Text></View>}
+      {importing && <MeepleImportProcessing source="pdf" />}
       {catalog.data?.cached && <Text style={styles.copy}>El catálogo externo no responde. Mostramos los reglamentos que ya tenemos guardados.</Text>}
       {!searched && <Text style={styles.label}>DISPONIBLES EN EL CATÁLOGO</Text>}
       {!loading && searched && books.length === 0 && !error && <Text style={styles.copy}>No encontramos reglamentos en ese idioma. Probá otro nombre o subí tu PDF.</Text>}

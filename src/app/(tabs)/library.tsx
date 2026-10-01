@@ -1,14 +1,12 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MeepleGameTile, ScoreSkeleton } from '@decodadev02/meepleui';
+import { MeepleGameTile, MeepleLibraryEntry, ScoreSkeleton } from '@decodadev02/meepleui';
 import { router, useFocusEffect } from 'expo-router';
-import { Text } from 'react-native-paper';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
-import { AppButton as Button } from '@/components/AppButton';
 
 export default function LibraryScreen() {
   const collection = useTableScoreStore((state) => state.collection);
@@ -27,136 +25,61 @@ export default function LibraryScreen() {
     finally { setLoadingRules(false); }
   }, [loadRules]);
 
-  useFocusEffect(useCallback(() => { refreshRules().catch(() => undefined); }, [refreshRules]));
+  useFocusEffect(useCallback(() => { void refreshRules(); }, [refreshRules]));
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <FlatList
-        data={collection}
-        keyExtractor={(game) => String(game.bggId)}
-        contentContainerStyle={styles.content}
-        ListHeaderComponent={
-          <>
-            <Text style={styles.eyebrow}>TU COLECCIÓN</Text>
-            <Text style={styles.title}>Biblioteca de juegos</Text>
-            <Text style={styles.subtitle}>Tus favoritos, listos para la próxima partida.</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Crear planilla de puntos" onPress={() => router.push('/rules/new')} style={styles.banner}>
-              <View style={styles.bannerIcon}><MaterialCommunityIcons name="table-edit" size={25} color={colors.forest} /></View>
-              <View style={styles.bannerText}>
-                <Text style={styles.bannerTitle}>Crear una planilla</Text>
-                <Text style={styles.bannerCopy}>Llevá los puntos de cualquier juego.</Text>
-              </View>
-              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Buscar planillas de la comunidad" onPress={() => router.push('/community/rules')} style={[styles.banner, styles.communityBanner]}>
-              <View style={styles.bannerIcon}><MaterialCommunityIcons name="account-group-outline" size={25} color={colors.forest} /></View>
-              <View style={styles.bannerText}>
-                <Text style={styles.bannerTitle}>Planillas de la comunidad</Text>
-                <Text style={styles.bannerCopy}>Encontrá planillas compartidas por otros jugadores.</Text>
-              </View>
-              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Subir reglamento en PDF" onPress={() => router.push('/pdf/reader')} style={[styles.banner, styles.pdfBanner]}>
-              <View style={[styles.bannerIcon, styles.pdfBannerIcon]}><MaterialCommunityIcons name="file-pdf-box" size={25} color={colors.orangeInk} /></View>
-              <View style={styles.bannerText}>
-                <Text style={styles.bannerTitle}>Subir reglamento en PDF</Text>
-                <Text style={styles.bannerCopy}>Elegí un archivo y encontrá las reglas de puntos.</Text>
-              </View>
-              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.orangeInk} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Leer imagen de tabla de puntos" onPress={() => router.push('/images/reader')} style={[styles.banner, styles.communityBanner]}>
-              <View style={styles.bannerIcon}><MaterialCommunityIcons name="image-search-outline" size={25} color={colors.forest} /></View>
-              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Leer tabla de puntos</Text><Text style={styles.bannerCopy}>Usá una foto o captura para crear un borrador.</Text></View>
-              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Buscar reglamentos por juego" onPress={() => router.push('/rulebooks')} style={[styles.banner, styles.communityBanner]}>
-              <View style={styles.bannerIcon}><MaterialCommunityIcons name="book-search-outline" size={25} color={colors.forest} /></View>
-              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Buscar reglamentos</Text><Text style={styles.bannerCopy}>Elegí un juego, leé su reglamento y armá una planilla.</Text></View>
-              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Buscar juegos en BoardGameGeek" onPress={() => router.push('/games')} style={[styles.banner, styles.communityBanner]}>
-              <View style={styles.bannerIcon}><MaterialCommunityIcons name="magnify" size={25} color={colors.forest} /></View>
-              <View style={styles.bannerText}><Text style={styles.bannerTitle}>Buscar juegos en BGG</Text><Text style={styles.bannerCopy}>Encontrá juegos y fotos fuera de tu colección.</Text></View>
-              <MaterialCommunityIcons name="arrow-right" size={22} color={colors.forest} />
-            </Pressable>
-            <View style={styles.listHeading}>
-              <Text variant="titleMedium" style={styles.listTitle}>Planillas guardadas</Text>
-              <Text style={styles.count}>{rules.length} total</Text>
-            </View>
-            <Button mode="outlined" icon="refresh" loading={loadingRules} disabled={loadingRules} onPress={() => refreshRules().catch(() => undefined)}>Actualizar planillas</Button>
-            {rulesError && <Text style={styles.error}>{rulesError}</Text>}
-            {rules.length ? rules.map((rule) => (
-              <View key={rule.id} style={styles.sheetCard}>
-                <Text style={styles.sheetGame}>{rule.gameName}</Text>
-                <Text style={styles.sheetName}>{rule.name}</Text>
-                <Text style={styles.gameMeta}>{rule.fields.length} campos · {rule.isPublic ? 'Compartida con la comunidad' : 'No aparece en la comunidad'}</Text>
-                <Button mode="text" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: rule.id } })}>Empezar partida</Button>
-              </View>
-            )) : !loadingRules && <Text style={styles.emptyCopy}>Todavía no hay planillas guardadas.</Text>}
-            {savedPDFs.length > 0 && (
-              <View style={styles.savedPDFSection}>
-                <Text variant="titleMedium" style={styles.listTitle}>Reglamentos guardados</Text>
-                {savedPDFs.map((pdf) => (
-                  <Button key={pdf.gameId ?? pdf.gameName} mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { game: pdf.gameName, ...(pdf.gameId ? { gameId: String(pdf.gameId) } : {}) } })}>{pdf.gameName} · {pdf.document.fileName}</Button>
-                ))}
-              </View>
-            )}
-            {collection.length > 0 && (
-              <View style={styles.listHeading}>
-                <Text variant="titleMedium" style={styles.listTitle}>Juegos importados</Text>
-                <Text style={styles.count}>{collection.length} total</Text>
-              </View>
-            )}
-          </>
-        }
-        ListEmptyComponent={!hasRestored ? <ScoreSkeleton variant="list" /> :
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}><MaterialCommunityIcons name="bookshelf" size={34} color={colors.forest} /></View>
-            <Text variant="headlineSmall" style={styles.emptyTitle}>Tu biblioteca te espera</Text>
-            <Text style={styles.emptyCopy}>Importá tu colección de BoardGameGeek para ver tus juegos acá.</Text>
-            <Button mode="contained" icon="download" onPress={() => router.navigate('/')}>Ir a importar</Button>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const hasSheet = rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase()));
-          return <MeepleGameTile
-            title={item.name}
-            imageUrl={item.thumbnailUrl || item.imageUrl}
-            detail={`${item.yearPublished || 'Año desconocido'} · ${item.minPlayers ?? '?'}–${item.maxPlayers ?? '?'} jugadores · ${hasSheet ? 'Planilla lista' : 'Sin planilla'}`}
-            onPress={() => router.push({ pathname: '/games/[gameId]', params: { gameId: String(item.bggId), name: item.name } })}
-          />;
-        }}
-      />
-    </SafeAreaView>
-  );
+  return <SafeAreaView style={styles.safe} edges={['top']}>
+    <FlatList
+      data={collection}
+      keyExtractor={(game) => String(game.bggId)}
+      contentContainerStyle={styles.content}
+      ListHeaderComponent={<View style={styles.header}>
+        <Text style={styles.eyebrow}>TU BIBLIOTECA</Text>
+        <Text style={styles.title}>Juegos y planillas</Text>
+        <Text style={styles.subtitle}>Elegí un juego para ver sus fuentes o retomá una planilla guardada.</Text>
+        <MeepleLibraryEntry title="Buscar un juego" detail="Tu colección y otras fuentes" onPress={() => router.push('/games')} />
+        <MeepleLibraryEntry title="Crear una planilla" detail="Prepará una planilla para jugar" onPress={() => router.push('/rules/new')} />
+
+        <View style={styles.sectionHeading}>
+          <View><Text style={styles.sectionLabel}>MIS PLANILLAS</Text><Text style={styles.count}>{rules.length} guardadas</Text></View>
+          <IconButton icon="refresh" iconColor={colors.forest} disabled={loadingRules} accessibilityLabel="Actualizar planillas" onPress={() => void refreshRules()} />
+        </View>
+        {rulesError && <Text style={styles.error}>{rulesError}</Text>}
+        {loadingRules && !rules.length && <ScoreSkeleton variant="list" />}
+        {!loadingRules && !rules.length && <Text style={styles.emptyCopy}>Todavía no hay planillas guardadas.</Text>}
+        {rules.map((rule) => <MeepleLibraryEntry key={rule.id} title={rule.gameName} detail={`${rule.name} · ${rule.fields.length} campos`} onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: rule.id } })} />)}
+
+        {!!savedPDFs.length && <View style={styles.savedSection}>
+          <Text style={styles.sectionLabel}>REGLAMENTOS GUARDADOS</Text>
+          {savedPDFs.map((pdf) => <MeepleLibraryEntry key={pdf.gameId ?? pdf.gameName} title={pdf.gameName} detail={pdf.document.fileName} onPress={() => router.push({ pathname: '/pdf/reader', params: { game: pdf.gameName, ...(pdf.gameId ? { gameId: String(pdf.gameId) } : {}) } })} />)}
+        </View>}
+
+        <View style={styles.sectionHeading}><View><Text style={styles.sectionLabel}>MIS JUEGOS</Text><Text style={styles.count}>{collection.length} en tu colección</Text></View></View>
+      </View>}
+      ListEmptyComponent={!hasRestored ? <ScoreSkeleton variant="list" /> : <Text style={styles.emptyCopy}>Tu colección está vacía. Buscá un juego o importá tus juegos desde Inicio.</Text>}
+      renderItem={({ item }) => {
+        const hasSheet = rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase()));
+        return <MeepleGameTile
+          title={item.name}
+          imageUrl={item.thumbnailUrl || item.imageUrl}
+          detail={`${item.minPlayers ?? '?'}–${item.maxPlayers ?? '?'} jugadores · ${hasSheet ? 'Planilla lista' : 'Sin planilla'}`}
+          onPress={() => router.push({ pathname: '/games/[gameId]', params: { gameId: String(item.bggId), name: item.name } })}
+        />;
+      }}
+    />
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { gap: 12, padding: 20, paddingBottom: 36 },
+  header: { gap: 12 },
   eyebrow: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginTop: 10 },
   title: { color: colors.ink, fontSize: 34, fontWeight: '800', letterSpacing: -1.2 },
-  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21, marginBottom: 16 },
-  banner: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 20, flexDirection: 'row', gap: 12, padding: 15 },
-  communityBanner: { backgroundColor: colors.paper, borderColor: colors.line, borderWidth: 1 },
-  pdfBanner: { backgroundColor: colors.orangePale },
-  pdfBannerIcon: { backgroundColor: colors.paper },
-  bannerIcon: { alignItems: 'center', backgroundColor: colors.paper, borderRadius: 13, height: 44, justifyContent: 'center', width: 44 },
-  bannerText: { flex: 1 },
-  bannerTitle: { color: colors.ink, fontSize: 14, fontWeight: '800' },
-  bannerCopy: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 2 },
-  listHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2, marginTop: 20 },
-  listTitle: { color: colors.ink, fontWeight: '800' },
-  savedPDFSection: { gap: 9, marginTop: 12 },
-  count: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  gameMeta: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  empty: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 24, borderWidth: 1, gap: 14, marginTop: 15, padding: 28 },
-  emptyIcon: { alignItems: 'center', backgroundColor: colors.mint, borderRadius: 23, height: 78, justifyContent: 'center', marginBottom: 2, width: 78 },
-  emptyTitle: { color: colors.ink, fontWeight: '800', textAlign: 'center' },
-  emptyCopy: { color: colors.muted, lineHeight: 20, textAlign: 'center' },
-  loader: { marginTop: 35 },
-  sheetCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 5, padding: 15 },
-  sheetGame: { color: colors.orangeInk, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
-  sheetName: { color: colors.ink, fontSize: 17, fontWeight: '800' },
-  error: { color: colors.error },
+  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21, marginBottom: 4 },
+  sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 },
+  sectionLabel: { color: colors.orangeInk, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  count: { color: colors.muted, fontSize: 12, marginTop: 3 },
+  savedSection: { gap: 12, marginTop: 12 },
+  emptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  error: { color: colors.error, fontSize: 13 },
 });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { MeepleDisclosure, MeepleScoringPreview } from '@decodadev02/meepleui';
+import { MeepleDisclosure, MeepleImportProcessing, MeepleScoringPreview } from '@decodadev02/meepleui';
 import { IconButton, Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -29,7 +29,8 @@ export default function ImageReaderScreen() {
           <Button mode="outlined" icon="camera" disabled={phase !== null} onPress={() => { setShowImageSources(false); void processImage('camera'); }}>Tomar foto</Button>
         </View>}
         {imageURI && <Image source={{ uri: imageURI }} style={styles.preview} resizeMode="contain" />}
-        {phase && <AssistStatus kind="working" title={phase === 'reading' ? 'Leyendo la imagen' : 'Preparando una propuesta'} description={phase === 'reading' ? 'Reconocemos el texto en tu dispositivo.' : 'Buscamos categorías y multiplicadores en el texto corregido.'} />}
+        {phase === 'reading' && <MeepleImportProcessing source="photo" />}
+        {phase === 'suggesting' && <AssistStatus kind="working" title="Preparando una propuesta" description="Buscamos categorías y multiplicadores en el texto corregido." />}
         {error && <Text style={styles.error}>{error}</Text>}
         {!!text && <>
           <Text style={styles.sectionTitle}>Texto reconocido</Text>

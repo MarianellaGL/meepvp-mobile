@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { MeepleDisclosure, MeepleScoringPreview, ScoreTextField as TextInput } from '@decodadev02/meepleui';
-import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
+import { MeepleDisclosure, MeepleImportProcessing, MeepleScoringPreview, ScoreTextField as TextInput } from '@decodadev02/meepleui';
+import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePDFReader } from '@/hooks/usePDFReader';
@@ -35,7 +35,7 @@ export default function PDFReaderScreen() {
           <Text style={styles.muted}>Leemos las reglas de puntos del PDF, incluso si está escaneado. Antes de guardar una planilla vas a revisar los campos.</Text>
         </View>
 
-        {loading && <View style={styles.loadingCard}><ActivityIndicator size="large" /><Text style={styles.muted}>Leyendo {selectedFile ?? 'el PDF'} y buscando reglas de puntuación…</Text></View>}
+        {loading && <MeepleImportProcessing source="pdf" />}
         {error && <View style={styles.errorCard}><Text style={styles.error}>{error}</Text></View>}
         {retryAsset && !loading && <Button mode="outlined" icon="refresh" onPress={() => importAsset(retryAsset).catch(() => undefined)}>Reintentar con {retryAsset.name}</Button>}
         {savedStatus && <Text style={styles.saved}>{savedStatus}</Text>}
@@ -109,7 +109,6 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
   muted: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   loader: { marginTop: 12 },
-  loadingCard: { alignItems: 'center', backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 18, borderWidth: 1, gap: 12, padding: 24 },
   errorCard: { backgroundColor: colors.orangePale, borderRadius: 15, padding: 14 },
   error: { color: colors.error },
   saved: { color: colors.forest, fontSize: 13, fontWeight: '700' },

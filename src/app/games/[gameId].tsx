@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MeepleDisclosure } from '@decodadev02/meepleui';
+import { MeepleDisclosure, MeepleLibraryEntry } from '@decodadev02/meepleui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +17,6 @@ export default function GameRulesScreen() {
   const rulesQuery = useGameRules(id);
   const rules = rulesQuery.data;
   const [linkError, setLinkError] = useState<string | null>(null);
-  const [showMoreSources, setShowMoreSources] = useState(false);
   const [showForum, setShowForum] = useState(false);
   const scoringRules = useTableScoreStore((state) => state.rules);
   const game = useTableScoreStore((state) => state.collection.find((item) => item.bggId === id));
@@ -38,28 +37,13 @@ export default function GameRulesScreen() {
         <Text style={styles.subtitle}>Elegí una planilla para jugar o prepará una desde el reglamento.</Text>
 
         <View style={styles.sectionHeader}><Text style={styles.eyebrow}>PARA JUGAR</Text><Text variant="headlineSmall" style={styles.heading}>Planillas</Text></View>
-        {gameSheets.length ? gameSheets.map((sheet) => (
-          <View key={sheet.id} style={styles.actionCard}>
-            <Text style={styles.actionTitle}>{sheet.name}</Text>
-            <Text style={styles.actionCopy}>{sheet.fields.length} campos de puntuación</Text>
-            <Button mode="contained" icon="play" onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: sheet.id } })}>Empezar partida</Button>
-          </View>
-        )) : <View style={styles.actionCard}><Text style={styles.actionTitle}>Todavía no hay una planilla</Text><Text style={styles.actionCopy}>Podés buscar una de la comunidad o crear la tuya con un reglamento.</Text></View>}
+        {gameSheets.length ? gameSheets.map((sheet) => <MeepleLibraryEntry key={sheet.id} title={sheet.name} detail={`${sheet.fields.length} campos · Lista para jugar`} onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: sheet.id } })} />) :
+          <Text style={styles.actionCopy}>Todavía no hay una planilla propia para este juego.</Text>}
         <View style={styles.sectionHeader}><Text style={styles.eyebrow}>PARA CREAR UNA PLANILLA</Text><Text variant="headlineSmall" style={styles.heading}>Elegí una fuente</Text></View>
-        <View style={styles.actionCard}>
-          <Text style={styles.actionTitle}>Reglamento</Text>
-          <Text style={styles.actionCopy}>Buscá la edición correcta y revisá sus campos de puntuación antes de guardar.</Text>
-          <Button mode="contained" icon="book-search-outline" onPress={() => router.push({ pathname: '/rulebooks', params: { gameId: String(id), game: String(name ?? '') } })}>Buscar reglamento</Button>
-          {savedPDF && <Button mode="outlined" icon="text-box-check-outline" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Retomar texto guardado</Button>}
-          {savedPDF && <Text style={styles.actionCopy}>Texto guardado: {savedPDF.document.fileName}</Text>}
-        </View>
-        <MeepleDisclosure title="Otras formas de crear una planilla" expanded={showMoreSources} onPress={() => setShowMoreSources((shown) => !shown)} />
-        {showMoreSources && <View style={styles.actionCard}>
-          <Button mode="outlined" icon="file-pdf-box" onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Subir mi PDF</Button>
-          <Button mode="outlined" icon="image-search-outline" onPress={() => router.push({ pathname: '/images/reader', params: { gameId: String(id), game: String(name ?? '') } })}>Leer tabla de puntos</Button>
-          <Button mode="outlined" icon="account-group-outline" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })}>Planillas de la comunidad</Button>
-          <Button mode="outlined" icon="table-edit" onPress={() => router.push({ pathname: '/rules/new', params: { gameId: String(id), game: String(name ?? '') } })}>Crear manualmente</Button>
-        </View>}
+        <MeepleLibraryEntry title="Planillas de la comunidad" detail="Ver las disponibles para este juego" onPress={() => router.push({ pathname: '/community/rules', params: { gameId: String(id), game: String(name ?? '') } })} />
+        <MeepleLibraryEntry title="Reglamentos" detail="Elegí la edición y revisá los puntos" onPress={() => router.push({ pathname: '/rulebooks', params: { gameId: String(id), game: String(name ?? '') } })} />
+        {savedPDF && <MeepleLibraryEntry title="Retomar texto guardado" detail={savedPDF.document.fileName} onPress={() => router.push({ pathname: '/pdf/reader', params: { gameId: String(id), game: String(name ?? '') } })} />}
+        <MeepleLibraryEntry title="Usar otra fuente" detail="PDF, foto o creación manual" onPress={() => router.push({ pathname: '/games/sources', params: { gameId: String(id), game: String(name ?? '') } })} />
 
         <MeepleDisclosure title="Dudas sobre las reglas" detail={rules?.status === 'ready' ? `${rules.totalThreads} conversaciones en BGG` : 'Foro de BoardGameGeek'} expanded={showForum} onPress={() => setShowForum((shown) => !shown)} />
         {showForum && <>
