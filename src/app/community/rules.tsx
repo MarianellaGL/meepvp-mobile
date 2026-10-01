@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreTextField as TextInput } from '@decodadev02/meepleui';
+import { MeepleDisclosure, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,6 +16,7 @@ export default function CommunityRulesScreen() {
   const rules = results.data ?? [];
   const loading = results.isFetching;
   const error = attachToPlan.error ?? results.error;
+  const [showSearch, setShowSearch] = useState(!game);
 
   async function handleUseRule(ruleId: string) {
     if (!planId) {
@@ -31,12 +33,13 @@ export default function CommunityRulesScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>COMUNIDAD</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Reglas de puntos de victoria</Text>
-        <Text style={styles.subtitle}>Encontrá planillas compartidas por otros jugadores para contar los puntos de tus partidas.</Text>
-        <View style={styles.searchCard}>
+        <Text style={styles.title}>{game ? `Planillas para ${game}` : 'Planillas de la comunidad'}</Text>
+        <Text style={styles.subtitle}>{game ? 'Elegí una planilla compartida para jugar.' : 'Buscá un juego para ver las planillas compartidas.'}</Text>
+        {game && <MeepleDisclosure title="Cambiar búsqueda" expanded={showSearch} onPress={() => setShowSearch((shown) => !shown)} />}
+        {showSearch && <View style={styles.searchCard}>
           <TextInput label="Buscar por juego o planilla" placeholder="Wingspan, Azul…" value={query} onChangeText={setQuery} onSubmitEditing={search} returnKeyType="search" mode="outlined" />
           <Button mode="contained" icon="magnify" loading={loading} disabled={loading} onPress={search}>Buscar planillas</Button>
-        </View>
+        </View>}
 
         {loading ? <ActivityIndicator size="large" style={styles.loader} /> : error ? (
           <View style={styles.card}><Text style={styles.error}>{error.message}</Text><Button mode="outlined" onPress={search}>Reintentar</Button></View>

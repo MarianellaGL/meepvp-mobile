@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { MeepleImportProcessing, ScoreTextField as TextInput } from '@decodadev02/meepleui';
+import { MeepleDisclosure, MeepleImportProcessing, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { IconButton, SegmentedButtons, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,6 +19,7 @@ export default function RulebookCatalogScreen() {
   const importing = importRulebook.isPending ? importRulebook.variables?.id : null;
   const error = importRulebook.error ?? catalog.error;
   const setPDFDraft = useTableScoreStore((state) => state.setPDFDraft);
+  const [showSearch, setShowSearch] = useState(!game);
 
   async function importBook(book: Rulebook) {
     try {
@@ -31,12 +33,12 @@ export default function RulebookCatalogScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.top}><IconButton icon="arrow-left" onPress={() => router.back()} /><Text style={styles.label}>REGLAMENTOS</Text></View>
-      <Text style={styles.title}>Enseñale un juego a MeepVP.</Text>
-      <Text style={styles.copy}>Buscá el reglamento, confirmá la edición y revisá la propuesta de puntuación antes de guardar.</Text>
-      {game && <Text style={styles.copy}>Buscando reglamentos para {game}. Podés cambiar el nombre si esta edición aparece con otro título.</Text>}
-      <TextInput label="Nombre del juego" value={query} onChangeText={(value) => setQuery(Array.from(value).slice(0, 100).join(''))} mode="outlined" returnKeyType="search" onSubmitEditing={() => { if (!loading && !importing) search(); }} />
+      <Text style={styles.title}>{game ? `Reglamentos para ${game}` : 'Elegí un reglamento'}</Text>
+      <Text style={styles.copy}>Confirmá la edición y revisá los puntos antes de crear la planilla.</Text>
+      {game && <MeepleDisclosure title="Cambiar búsqueda" expanded={showSearch} onPress={() => setShowSearch((shown) => !shown)} />}
+      {showSearch && <TextInput label="Nombre del juego" value={query} onChangeText={(value) => setQuery(Array.from(value).slice(0, 100).join(''))} mode="outlined" returnKeyType="search" onSubmitEditing={() => { if (!loading && !importing) search(); }} />}
       <SegmentedButtons value={language} onValueChange={(value) => changeLanguage(value as 'en' | 'fr')} buttons={[{ value: 'en', label: 'Inglés', disabled: !!importing }, { value: 'fr', label: 'Francés', disabled: !!importing }]} />
-      <Button mode="contained" icon="magnify" loading={loading} disabled={loading || !!importing} onPress={search}>Buscar reglamentos</Button>
+      {showSearch && <Button mode="contained" icon="magnify" loading={loading} disabled={loading || !!importing} onPress={search}>Buscar reglamentos</Button>}
       {error && <Text style={styles.error}>{error.message}</Text>}
       {importing && <MeepleImportProcessing source="pdf" />}
       {catalog.data?.cached && <Text style={styles.copy}>El catálogo externo no responde. Mostramos los reglamentos que ya tenemos guardados.</Text>}
@@ -49,7 +51,6 @@ export default function RulebookCatalogScreen() {
         <Button mode="outlined" icon="file-pdf-box" loading={importing === book.id} disabled={!!importing || loading} onPress={() => importBook(book)}>Leer y crear planilla</Button>
       </View>)}
       <Button mode="outlined" icon="file-pdf-box" disabled={!!importing} onPress={() => router.push({ pathname: '/pdf/reader', params: { ...(gameId ? { gameId } : {}), ...(game ? { game } : {}) } })}>Subir mi PDF</Button>
-      <Text style={styles.copy}>Catan, Everdell y Wingspan base tienen propuestas revisadas. Otros reglamentos permiten detectar tablas o configurar los campos manualmente usando el texto extraído.</Text>
     </ScrollView>
   </SafeAreaView>;
 }
