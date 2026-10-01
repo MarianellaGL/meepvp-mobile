@@ -41,7 +41,10 @@ export function buildGameDiscoveryEntries(
   }
 
   function fromName(name: string, bggId?: number): GameDiscoveryEntry {
-    return (bggId ? byId.get(bggId) : undefined) ?? byName.get(normalizedName(name)) ?? addGame({ bggId: bggId ?? 0, name });
+    const matchingName = byName.get(normalizedName(name));
+    return (bggId ? byId.get(bggId) : undefined) ??
+      (matchingName && (!bggId || matchingName.game.bggId === bggId || matchingName.game.bggId === 0) ? matchingName : undefined) ??
+      addGame({ bggId: bggId ?? 0, name });
   }
 
   games.forEach(addGame);

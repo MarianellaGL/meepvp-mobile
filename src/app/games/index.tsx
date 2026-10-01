@@ -15,16 +15,16 @@ export default function GamesScreen() {
   const collection = useTableScoreStore((state) => state.collection);
   const ownRules = useTableScoreStore((state) => state.rules);
   const hasRestored = useTableScoreStore((state) => state.hasRestored);
-  const { query, changeQuery, search, searchResult, communityResult, rulebookResult, hasSearched } = useGameDiscovery();
-  const searching = hasSearched && (searchResult.isFetching || communityResult.isFetching || rulebookResult.isFetching);
+  const { query, changeQuery, search, searchResult, hasSearched } = useGameDiscovery();
+  const searching = hasSearched && searchResult.isFetching;
   const localResults = query.trim() ? collection.filter((game) => game.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : collection;
   const entries = buildGameDiscoveryEntries(
-    hasSearched ? [...(searchResult.data?.status === 'ready' ? searchResult.data.games ?? [] : []), ...localResults] : localResults,
+    hasSearched ? [...(searchResult.data?.games ?? []), ...localResults] : localResults,
     hasSearched ? ownRules.filter((rule) => rule.gameName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : [],
-    hasSearched ? communityResult.data ?? [] : [],
-    hasSearched ? rulebookResult.data?.results ?? [] : [],
+    hasSearched ? searchResult.data?.communityRules ?? [] : [],
+    hasSearched ? searchResult.data?.rulebooks ?? [] : [],
   );
-  const sourceError = searchResult.error || communityResult.error || rulebookResult.error;
+  const sourceError = searchResult.error || searchResult.data?.unavailableSources.length;
 
   function openGame(entry: GameDiscoveryEntry) {
     const { game } = entry;

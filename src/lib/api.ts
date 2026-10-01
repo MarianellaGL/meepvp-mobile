@@ -21,6 +21,15 @@ export type BGGCollection = {
   games?: CollectionGame[];
 };
 export type BGGSearch = BGGCollection;
+export type GameDiscovery = {
+  status: 'ready' | 'processing';
+  retryAfterSeconds?: number;
+  games: CollectionGame[];
+  communityRules: ScoringRule[];
+  rulebooks: Rulebook[];
+  cachedRulebooks: boolean;
+  unavailableSources: ('bgg' | 'community' | 'rulebooks')[];
+};
 
 export type APIHealth = { status: 'ok' };
 
@@ -92,6 +101,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  searchDiscovery: (query: string) => request<GameDiscovery>(`/v1/discovery/search?query=${encodeURIComponent(query.trim())}`),
   searchRulebooks: (query: string, language: 'en' | 'fr' = 'en') => request<RulebookSearch>(`/v1/rulebooks?query=${encodeURIComponent(query.trim())}&language=${language}`),
   extractRulebook: (id: string) => request<PDFExtract>(`/v1/rulebooks/${encodeURIComponent(id)}/extract`, { method: 'POST' }),
   getHealth: () => request<APIHealth>('/health'),
