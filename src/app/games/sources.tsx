@@ -8,7 +8,7 @@ import { colors, tokens } from '@/theme';
 
 export default function GameSourcesScreen() {
   const { game, gameId, flow } = useLocalSearchParams<{ game?: string; gameId?: string; flow?: string }>();
-  const params = { ...(game ? { game } : {}), ...(gameId ? { gameId } : {}) };
+  const params = { ...(game ? { game } : {}), ...(gameId ? { gameId } : {}), ...(flow === 'setup' ? { flow: 'setup' } : {}) };
   const setup = flow === 'setup';
 
   return <SafeAreaView style={styles.safe} edges={['top']}>

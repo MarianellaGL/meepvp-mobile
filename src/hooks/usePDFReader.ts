@@ -8,9 +8,9 @@ import { extractScoringDraft } from '@/lib/scoringDraft';
 import { extractScoringTable } from '@/lib/scoringTable';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 
-type Params = { gameId?: string; game?: string; rulebookId?: string };
+type Params = { gameId?: string; game?: string; rulebookId?: string; flow?: string };
 
-export function usePDFReader({ gameId, game, rulebookId }: Params) {
+export function usePDFReader({ gameId, game, rulebookId, flow }: Params) {
   const [document, setDocument] = useState<PDFExtract | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function usePDFReader({ gameId, game, rulebookId }: Params) {
       const updated = { ...activeDocument, scoringExcerpts: scoringPrompt.split('\n') };
       await persist(updated);
       setPDFDraft(updated);
-      router.push({ pathname: '/rules/new', params: { fromPdf: '1', game: name, ...(resolvedGameId ? { gameId: String(resolvedGameId) } : {}) } });
+      router.push({ pathname: '/rules/new', params: { fromPdf: '1', game: name, ...(resolvedGameId ? { gameId: String(resolvedGameId) } : {}), ...(flow === 'setup' ? { flow: 'setup' } : {}) } });
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.'); }
   }
 

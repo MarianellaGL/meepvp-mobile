@@ -1,38 +1,39 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { MeepleDisclosure, MeepleImportProcessing, MeepleScoringPreview, ScoreTextField as TextInput } from '@decodadev02/meepleui';
 import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePDFReader } from '@/hooks/usePDFReader';
-import { colors } from '@/theme';
+import { colors, tokens } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 import { AssistStatus } from '@/components/AssistStatus';
 
 export default function PDFReaderScreen() {
-  const { gameId, game, rulebookId } = useLocalSearchParams<{ gameId?: string; game?: string; rulebookId?: string }>();
-  const reader = usePDFReader({ gameId, game, rulebookId });
+  const { gameId, game, rulebookId, flow } = useLocalSearchParams<{ gameId?: string; game?: string; rulebookId?: string; flow?: string }>();
+  const reader = usePDFReader({ gameId, game, rulebookId, flow });
   const { activeDocument, savedDocument, savedItem, scoringTable, scoringDraft,
     scoringNotes, setScoringNotes, canSuggest, gameNameDraft, changeGameName, name, selectedFile, retryAsset, savedStatus, error,
     loading, saving, suggesting, pickPDF, importAsset, saveCurrent, saveAndBuild, suggestWithAI } = reader;
   const [showFullText, setShowFullText] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>LECTOR DE REGLAMENTOS</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Leer un reglamento</Text>
-        <Text style={styles.subtitle}>Elegí un PDF. Leemos sus reglas de puntos y, cuando hay evidencia suficiente, preparamos una planilla para que la revises.</Text>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>{flow === 'setup' ? 'PARTIDA · PLANILLA' : 'TU BIBLIOTECA'}</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>{loading ? 'Leyendo PDF' : activeDocument ? scoringDraft ? 'Leemos el PDF' : 'Sin tabla detectada' : error ? 'No pudimos leerlo' : 'Elegí un PDF'}</Text>
+        <Text style={styles.subtitle}>{loading ? 'Estamos extrayendo las reglas y buscando cómo contar los puntos.' : activeDocument ? scoringDraft ? 'Encontramos una estructura de puntos. Revisala antes de guardar la planilla.' : 'No encontramos una estructura de puntos confiable. Revisá los fragmentos o pedí una propuesta editable.' : 'Subí el reglamento para buscar las reglas de puntuación.'}</Text>
+        {flow === 'setup' && <View accessibilityLabel="Paso 4 de 5" style={styles.progressTrack}><View style={styles.progressFill} /></View>}
         {activeDocument?.rulebook && <Text style={styles.muted}>Fuente: {activeDocument.rulebook.source} · {activeDocument.rulebook.language.toUpperCase()} · {activeDocument.rulebook.name}</Text>}
 
         <View style={styles.card}>
           <TextInput label="Nombre del juego" value={gameNameDraft} onChangeText={changeGameName} mode="outlined" />
           <Text style={styles.cardTitle}>{loading ? selectedFile : activeDocument?.fileName ?? selectedFile ?? 'Elegí un PDF'}</Text>
           {activeDocument && !loading && <Text style={styles.muted}>{activeDocument.pages} páginas</Text>}
-          {!activeDocument && <Button mode="contained" icon="file-pdf-box" loading={loading} disabled={loading || saving} onPress={pickPDF}>Elegir PDF</Button>}
-          <Text style={styles.muted}>Leemos las reglas de puntos del PDF, incluso si está escaneado. Antes de guardar una planilla vas a revisar los campos.</Text>
+          {!activeDocument && !loading && <Text style={styles.muted}>Podés elegir un PDF de hasta 20 MB. Antes de guardar una planilla vas a revisar los campos.</Text>}
         </View>
 
         {loading && <MeepleImportProcessing source="pdf" />}
@@ -66,7 +67,8 @@ export default function PDFReaderScreen() {
                 </View>
               </ScrollView>
             </> : null}
-            <TextInput
+            {!!scoringDraft && <MeepleDisclosure title="Fragmentos sobre puntuación" detail="Ver o corregir el texto usado" expanded={showNotes} onPress={() => setShowNotes((shown) => !shown)} />}
+            {(!scoringDraft || showNotes) && <TextInput
               label="Fragmentos sobre puntuación"
               value={scoringNotes}
               onChangeText={setScoringNotes}
@@ -76,10 +78,9 @@ export default function PDFReaderScreen() {
               multiline
               numberOfLines={6}
               style={styles.scoringInput}
-            />
-            {!scoringDraft && <Button mode="contained" icon="auto-fix" loading={suggesting} disabled={!canSuggest || suggesting || saving} onPress={suggestWithAI}>Proponer plantilla editable con IA</Button>}
+            />}
             {!scoringDraft && !canSuggest && <Text style={styles.muted}>{!name ? 'Ingresá el nombre del juego para pedir la propuesta.' : 'Escribí al menos 40 caracteres de reglas de puntuación en las viñetas.'}</Text>}
-            <Button mode={scoringDraft ? 'contained' : 'text'} icon="table-edit" loading={saving} disabled={!name || saving || suggesting} onPress={saveAndBuild}>{scoringDraft ? 'Revisar campos y crear planilla' : 'Crear planilla manual'}</Button>
+            {!scoringDraft && <Pressable accessibilityRole="link" onPress={saveAndBuild} disabled={!name || saving || suggesting}><Text style={[styles.link, (!name || saving || suggesting) && styles.disabledLink]}>Armar la planilla manualmente →</Text></Pressable>}
             {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el texto o crear una planilla.</Text>}
             <MeepleDisclosure title="Más opciones del reglamento" expanded={showMoreOptions} onPress={() => setShowMoreOptions((shown) => !shown)} />
             {showMoreOptions && <View style={styles.card}>
@@ -93,17 +94,22 @@ export default function PDFReaderScreen() {
           </>
         )}
       </ScrollView>
+      {!loading && <View style={styles.bottomAction}>
+        {!activeDocument ? <Button mode="contained" icon="file-pdf-box" disabled={saving} onPress={pickPDF}>{error ? 'Elegir otro PDF' : 'Elegir PDF'}</Button> : scoringDraft ?
+          <Button mode="contained" icon="table-edit" loading={saving} disabled={!name || saving || suggesting} onPress={saveAndBuild}>Revisar planilla</Button> :
+          <Button mode="contained" icon="auto-fix" loading={suggesting} disabled={!canSuggest || suggesting || saving} onPress={suggestWithAI}>Proponer con IA</Button>}
+      </View>}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { gap: 14, padding: 20, paddingBottom: 45 },
+  content: { gap: 14, padding: 24, paddingBottom: 45 },
   topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginLeft: -12 },
   topLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   topSpacer: { width: 40 },
-  title: { color: colors.ink, fontSize: 32, fontWeight: '800' },
+  title: { color: colors.ink, fontFamily: tokens.font.heading, fontSize: 27, lineHeight: 35 },
   subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 },
   card: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 20, borderWidth: 1, gap: 12, padding: 17 },
   cardTitle: { color: colors.ink, fontSize: 16, fontWeight: '800' },
@@ -123,4 +129,9 @@ const styles = StyleSheet.create({
   tableCategory: { color: colors.ink, fontSize: 12, fontWeight: '700', padding: 9, width: 210 },
   tableCell: { color: colors.muted, fontSize: 13, textAlign: 'center', width: 46 },
   tableTotal: { backgroundColor: colors.mint, borderBottomWidth: 0 },
+  progressTrack: { backgroundColor: colors.line, borderRadius: 4, height: 5, marginTop: 8, overflow: 'hidden' },
+  progressFill: { backgroundColor: colors.orangeInk, height: '100%', width: '80%' },
+  link: { color: colors.orangeInk, fontSize: 14, fontWeight: '700', marginVertical: 6 },
+  disabledLink: { opacity: 0.45 },
+  bottomAction: { backgroundColor: colors.canvas, paddingHorizontal: 24, paddingVertical: 12 },
 });

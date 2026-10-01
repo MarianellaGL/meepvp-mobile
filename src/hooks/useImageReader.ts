@@ -8,7 +8,7 @@ import { readImageText } from '@/lib/imageOCR';
 import { extractScoringDraft } from '@/lib/scoringDraft';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 
-export function useImageReader(initialGame = '', gameId?: string) {
+export function useImageReader(initialGame = '', gameId?: string, flow?: string) {
   const [gameName, setGameName] = useState(initialGame);
   const [imageURI, setImageURI] = useState<string | null>(null);
   const [imageName, setImageName] = useState('Imagen de tabla de puntos');
@@ -66,7 +66,7 @@ export function useImageReader(initialGame = '', gameId?: string) {
   function buildSheet() {
     if (!preparedDraft || !gameName.trim()) return;
     setPDFDraft(preparedDraft);
-    router.push({ pathname: '/rules/new', params: { fromImage: '1', game: gameName.trim(), ...(gameId ? { gameId } : {}) } });
+    router.push({ pathname: '/rules/new', params: { fromImage: '1', game: gameName.trim(), ...(gameId ? { gameId } : {}), ...(flow === 'setup' ? { flow: 'setup' } : {}) } });
   }
 
   return { gameName, changeGameName, imageURI, text, changeText, phase, preparedDraft,

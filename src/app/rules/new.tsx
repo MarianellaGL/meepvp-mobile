@@ -9,7 +9,7 @@ import type { CreateScoringRule, FieldKind } from '@/lib/api';
 import { extractScoringDraft } from '@/lib/scoringDraft';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { colors } from '@/theme';
+import { colors, tokens } from '@/theme';
 import { AppButton as Button } from '@/components/AppButton';
 import { AssistStatus } from '@/components/AssistStatus';
 
@@ -17,7 +17,7 @@ type DraftField = { name: string; kind: FieldKind; pointsPerUnit: string };
 const emptyField = (): DraftField => ({ name: '', kind: 'checkbox', pointsPerUnit: '1' });
 
 export default function NewRuleScreen() {
-  const { gameId, game: selectedGame, fromPdf, fromImage, planId } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; fromImage?: string; planId?: string }>();
+  const { gameId, game: selectedGame, fromPdf, fromImage, planId, flow } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; fromImage?: string; planId?: string; flow?: string }>();
   const { createScoringRule, setScheduledGameRule, error, pdfDraft, setPDFDraft } = useTableScoreStore();
   const importedDraft = (fromPdf === '1' || fromImage === '1') && pdfDraft ? extractScoringDraft(pdfDraft) : null;
   const [gameName, setGameName] = useState(selectedGame ?? importedDraft?.gameName ?? '');
@@ -64,9 +64,10 @@ export default function NewRuleScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>NUEVA PLANILLA</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>Contar puntos es más fácil.</Text>
-        <Text style={styles.subtitle}>Configurá los puntos una vez y disfrutá cada partida.</Text>
+        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>{flow === 'setup' ? 'PARTIDA · PLANILLA' : 'NUEVA PLANILLA'}</Text><View style={styles.topSpacer} /></View>
+        <Text style={styles.title}>{fromPdf === '1' || fromImage === '1' ? 'Revisá la planilla' : 'Armá tu planilla'}</Text>
+        <Text style={styles.subtitle}>Confirmá los campos y sus puntos antes de guardar.</Text>
+        {flow === 'setup' && <View accessibilityLabel="Paso 5 de 5" style={styles.progressTrack}><View style={styles.progressFill} /></View>}
 
         {(fromPdf === '1' || fromImage === '1') && pdfDraft && (
           <View style={styles.formCard}>
@@ -108,19 +109,19 @@ export default function NewRuleScreen() {
         ))}
         <Button mode="outlined" icon="plus" onPress={() => setFields((current) => [...current, emptyField()])}>Agregar campo</Button>
         {error && <Text style={styles.error}>{error}</Text>}
-        <Button mode="contained" icon="content-save-outline" loading={isSaving} disabled={!gameName.trim() || fields.some((field) => !field.name.trim())} onPress={saveRule} style={styles.save}>{planId ? 'Guardar para la partida programada' : 'Guardar tabla y elegir jugadores'}</Button>
       </ScrollView>
+      <View style={styles.bottomAction}><Button mode="contained" icon="content-save-outline" loading={isSaving} disabled={!gameName.trim() || fields.some((field) => !field.name.trim()) || isSaving} onPress={saveRule}>{planId ? 'Guardar para la partida programada' : 'Guardar planilla'}</Button></View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { gap: 13, padding: 20, paddingBottom: 40 },
+  content: { gap: 13, padding: 24, paddingBottom: 40 },
   topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginLeft: -12 },
   topLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
   topSpacer: { width: 40 },
-  title: { color: colors.ink, fontSize: 32, fontWeight: '800', letterSpacing: -1.1, marginTop: 6 },
+  title: { color: colors.ink, fontFamily: tokens.font.heading, fontSize: 27, lineHeight: 35, marginTop: 6 },
   subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21, marginBottom: 10 },
   formCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 23, borderWidth: 1, gap: 14, padding: 17 },
   sectionLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
@@ -137,7 +138,9 @@ const styles = StyleSheet.create({
   fieldCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 21, borderWidth: 1, gap: 12, padding: 16 },
   fieldHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 20 },
   fieldNumber: { color: colors.forest, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  save: { marginTop: 8 },
+  progressTrack: { backgroundColor: colors.line, borderRadius: 4, height: 5, marginTop: 8, marginBottom: 8, overflow: 'hidden' },
+  progressFill: { backgroundColor: colors.orangeInk, height: '100%', width: '100%' },
+  bottomAction: { backgroundColor: colors.canvas, paddingHorizontal: 24, paddingVertical: 12 },
   error: { color: colors.error },
   pdfExcerpt: { color: colors.ink, fontSize: 12, lineHeight: 18 },
 });

@@ -11,9 +11,9 @@ import { useImageReader } from '@/hooks/useImageReader';
 import { colors } from '@/theme';
 
 export default function ImageReaderScreen() {
-  const { game, gameId } = useLocalSearchParams<{ game?: string; gameId?: string }>();
+  const { game, gameId, flow } = useLocalSearchParams<{ game?: string; gameId?: string; flow?: string }>();
   const { gameName, changeGameName, imageURI, text, changeText, phase, preparedDraft,
-    usedManualFallback, error, suggestedFields, processImage, prepareSheet, buildSheet } = useImageReader(game, gameId);
+    usedManualFallback, error, suggestedFields, processImage, prepareSheet, buildSheet } = useImageReader(game, gameId, flow);
   const [showImageSources, setShowImageSources] = useState(false);
 
   return (
