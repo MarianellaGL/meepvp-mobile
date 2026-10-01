@@ -1,0 +1,28 @@
+{
+  "name": "@decodadev02/meepleui",
+  "version": "0.1.2",
+  "description": "Componentes móviles de MeepVP para React Native y Expo",
+  "license": "MIT",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "react-native": "./lib/index.js",
+  "files": ["lib", "assets/figma", "README.md"],
+  "keywords": ["react-native", "expo", "react-native-paper", "design-system", "meepvp"],
+  "repository": { "type": "git", "url": "https://github.com/MarianellaGL/MeepleUI.git" },
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@expo-google-fonts/cinzel": "^0.4.2",
+    "@expo-google-fonts/cinzel-decorative": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2"
+  },
+  "peerDependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "expo": "~57.0.0",
+    "expo-font": "~57.0.0",
+    "react": "^19.2.0",
+    "react-native": "^0.86.0",
+    "react-native-svg": "^15.15.4",
+    "react-native-paper": "^5.15.0"
+  },
+  "sideEffects": false
+}

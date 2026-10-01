@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@decodadev02/meepleui':
-        specifier: file:../MeepleUI/package-dist
-        version: file:../MeepleUI/package-dist(ff24f31b6dcd0ff57fb3f9fa790067ed)
+        specifier: file:vendor/meepleui
+        version: file:vendor/meepleui(ff24f31b6dcd0ff57fb3f9fa790067ed)
       '@expo/vector-icons':
         specifier: ^15.1.1
         version: 15.1.1(expo-font@57.0.4)(react-native@0.86.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.87.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
@@ -489,8 +489,8 @@ packages:
     peerDependencies:
       react: '>=16.3.0'
 
-  '@decodadev02/meepleui@file:../MeepleUI/package-dist':
-    resolution: {directory: ../MeepleUI/package-dist, type: directory}
+  '@decodadev02/meepleui@file:vendor/meepleui':
+    resolution: {directory: vendor/meepleui, type: directory}
     peerDependencies:
       '@expo/vector-icons': ^15.1.1
       expo: ~57.0.0
@@ -4672,7 +4672,7 @@ snapshots:
       hoist-non-react-statics: 3.3.2
       react: 19.2.3
 
-  '@decodadev02/meepleui@file:../MeepleUI/package-dist(ff24f31b6dcd0ff57fb3f9fa790067ed)':
+  '@decodadev02/meepleui@file:vendor/meepleui(ff24f31b6dcd0ff57fb3f9fa790067ed)':
     dependencies:
       '@expo-google-fonts/cinzel': 0.4.2
       '@expo-google-fonts/cinzel-decorative': 0.4.1

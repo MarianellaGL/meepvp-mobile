@@ -4,12 +4,11 @@ Aplicación Expo SDK 57 para llevar puntuaciones de juegos de mesa, compartir pl
 
 ## Ejecutar en local
 
-Mientras `@decodadev02/meepleui` no esté publicado, esta rama usa el paquete
-local de `../MeepleUI/package-dist`. Antes de instalar dependencias, ejecutá
-`pnpm build:package` en `../MeepleUI`; después ejecutá `pnpm install` en esta
-app cada vez que cambie la biblioteca. Para una compilación independiente de
-ambos repositorios habrá que reemplazar la dependencia local por la versión
-publicada.
+La app incluye una copia compilada de `@decodadev02/meepleui` en
+`vendor/meepleui`, por lo que se puede instalar desde un checkout independiente.
+Cuando cambie la biblioteca, ejecutá `pnpm build:package` en `../MeepleUI`,
+copiá el contenido de `package-dist` a `vendor/meepleui` y actualizá el lockfile
+con `pnpm install` antes de publicar mobile.
 
 Para usar la API desplegada en Render, configurá `EXPO_PUBLIC_API_URL` en `.env`
 con la URL HTTPS pública del servicio, sin `/docs` ni `/v1`. La app agrega las

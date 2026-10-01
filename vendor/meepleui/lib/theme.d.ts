@@ -1,0 +1,136 @@
+export declare const tokens: {
+    readonly color: {
+        readonly canvas: "#080B15";
+        readonly surface: "#100D1C";
+        readonly elevated: "#241024";
+        readonly primaryText: "#FFF9F0";
+        readonly secondaryText: "#BCAFB9";
+        readonly gold: "#FFD47A";
+        readonly red: "#F4511E";
+        readonly redDark: "#B5253C";
+        readonly meepleRed: "#C52C32";
+        readonly starBrass: "#B99456";
+        readonly levelBadgeBackground: "#1F1C2E";
+        readonly levelBadgeBorder: "#A67A40";
+        readonly border: "#411B2C";
+        readonly brand: "#F2A84B";
+        readonly success: "#65D88B";
+        readonly successSoft: "#1B402D";
+        readonly warning: "#FF6F66";
+        readonly warningSoft: "#562026";
+    };
+    readonly radius: {
+        readonly small: 8;
+        readonly medium: 14;
+        readonly large: 18;
+    };
+    readonly space: {
+        readonly xs: 4;
+        readonly sm: 8;
+        readonly md: 16;
+        readonly lg: 24;
+        readonly xl: 32;
+    };
+    readonly font: {
+        readonly body: "Inter_400Regular";
+        readonly medium: "Inter_500Medium";
+        readonly semibold: "Inter_600SemiBold";
+        readonly heading: "Cinzel_700Bold";
+        readonly brand: "CinzelDecorative_700Bold";
+    };
+};
+export declare const meepleUITheme: {
+    roundness: 14;
+    colors: {
+        primary: "#F4511E";
+        onPrimary: "#080B15";
+        primaryContainer: "#B5253C";
+        onPrimaryContainer: "#FFF9F0";
+        secondary: "#FFD47A";
+        onSecondary: "#080B15";
+        background: "#080B15";
+        surface: "#100D1C";
+        surfaceVariant: "#241024";
+        onSurface: "#FFF9F0";
+        onSurfaceVariant: "#BCAFB9";
+        outline: "#411B2C";
+        error: "#FF6F66";
+        secondaryContainer: string;
+        tertiary: string;
+        tertiaryContainer: string;
+        surfaceDisabled: string;
+        errorContainer: string;
+        onSecondaryContainer: string;
+        onTertiary: string;
+        onTertiaryContainer: string;
+        onSurfaceDisabled: string;
+        onError: string;
+        onErrorContainer: string;
+        onBackground: string;
+        outlineVariant: string;
+        inverseSurface: string;
+        inverseOnSurface: string;
+        inversePrimary: string;
+        shadow: string;
+        scrim: string;
+        backdrop: string;
+        elevation: import("react-native-paper/lib/typescript/types").MD3ElevationColors;
+    };
+    dark: boolean;
+    mode?: "adaptive" | "exact";
+    animation: {
+        scale: number;
+        defaultAnimationDuration?: number;
+    };
+    version: 3;
+    isV3: true;
+    fonts: import("react-native-paper/lib/typescript/types").MD3Typescale;
+};
+/** @deprecated Use meepleUITheme. */
+export declare const scoreUITheme: {
+    roundness: 14;
+    colors: {
+        primary: "#F4511E";
+        onPrimary: "#080B15";
+        primaryContainer: "#B5253C";
+        onPrimaryContainer: "#FFF9F0";
+        secondary: "#FFD47A";
+        onSecondary: "#080B15";
+        background: "#080B15";
+        surface: "#100D1C";
+        surfaceVariant: "#241024";
+        onSurface: "#FFF9F0";
+        onSurfaceVariant: "#BCAFB9";
+        outline: "#411B2C";
+        error: "#FF6F66";
+        secondaryContainer: string;
+        tertiary: string;
+        tertiaryContainer: string;
+        surfaceDisabled: string;
+        errorContainer: string;
+        onSecondaryContainer: string;
+        onTertiary: string;
+        onTertiaryContainer: string;
+        onSurfaceDisabled: string;
+        onError: string;
+        onErrorContainer: string;
+        onBackground: string;
+        outlineVariant: string;
+        inverseSurface: string;
+        inverseOnSurface: string;
+        inversePrimary: string;
+        shadow: string;
+        scrim: string;
+        backdrop: string;
+        elevation: import("react-native-paper/lib/typescript/types").MD3ElevationColors;
+    };
+    dark: boolean;
+    mode?: "adaptive" | "exact";
+    animation: {
+        scale: number;
+        defaultAnimationDuration?: number;
+    };
+    version: 3;
+    isV3: true;
+    fonts: import("react-native-paper/lib/typescript/types").MD3Typescale;
+};

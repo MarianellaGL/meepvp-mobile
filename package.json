@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@decodadev02/meepleui": "file:../MeepleUI/package-dist",
+    "@decodadev02/meepleui": "file:vendor/meepleui",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@tanstack/react-query": "^5.104.0",
