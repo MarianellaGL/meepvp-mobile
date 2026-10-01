@@ -69,9 +69,11 @@ function apiErrorMessage(message: string | undefined, status: number): string {
     'rulebook catalog unavailable': 'No pudimos consultar el catálogo de reglamentos. Reintentá en unos minutos.',
     'could not download rulebook': 'No pudimos descargar ese reglamento. Reintentá o elegí otro.',
     'could not extract rulebook PDF': 'No pudimos leer ese PDF. Podés probar con otro reglamento.',
+    'AI scoring assistant unavailable': 'La asistencia de IA no está disponible ahora. Podés crear la planilla manualmente.',
+    'could not generate scoring suggestion': 'No pudimos generar una propuesta con IA. Reintentá o creá la planilla manualmente.',
   };
   if (message && known[message]) return known[message];
-  if (status === 429) return 'BoardGameGeek está limitando las solicitudes. Esperá un momento y reintentá.';
+  if (status === 429) return 'Hay demasiadas solicitudes. Esperá un momento y reintentá.';
   if (status >= 500) return 'El servidor tuvo un problema. Reintentá en unos minutos.';
   return 'No pudimos completar la solicitud. Revisá los datos e intentá de nuevo.';
 }
@@ -141,6 +143,7 @@ export const api = {
   searchGames: (query: string) => request<BGGSearch>(`/v1/bgg/search?query=${encodeURIComponent(query.trim())}`),
   getGameRules: (gameId: number) => request<GameRules>(`/v1/bgg/games/${gameId}/rules`),
   interpretScoringText: (gameName: string, text: string) => request<PDFExtract>('/v1/ocr/scoring-text', { method: 'POST', body: JSON.stringify({ gameName, text }) }),
+  suggestScoringDraft: (gameName: string, text: string) => request<{ scoringSuggestion: ScoringSuggestion | null }>('/v1/ai/scoring-suggestion', { method: 'POST', body: JSON.stringify({ gameName, text: text.slice(0, 120_000) }) }),
   async extractPDF(asset: DocumentPickerAsset, gameName = ''): Promise<PDFExtract> {
     const data = new FormData();
     if (Platform.OS === 'web' && asset.file) data.append('file', asset.file, asset.name);

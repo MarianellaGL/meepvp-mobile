@@ -25,6 +25,7 @@ export default function PDFReaderScreen() {
   const [replacingDocument, setReplacingDocument] = useState(false);
   const [gameNameDraft, setGameNameDraft] = useState(game ?? '');
   const [saving, setSaving] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [savedStatus, setSavedStatus] = useState<string | null>(null);
   const collection = useTableScoreStore((state) => state.collection);
   const savedPDFs = useTableScoreStore((state) => state.savedPDFs);
@@ -59,6 +60,34 @@ export default function PDFReaderScreen() {
       setError(cause instanceof Error ? cause.message : 'No pudimos guardar la extracción.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function suggestWithAI() {
+    if (!activeDocument) return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const result = await api.suggestScoringDraft(name, activeDocument.text);
+      if (!result.scoringSuggestion) {
+        setError('La IA no encontró suficientes reglas de puntuación en este texto. Revisá el reglamento o empezá una planilla manual.');
+        return;
+      }
+      const updated = { ...activeDocument, scoringSuggestion: result.scoringSuggestion };
+      if (!extractScoringDraft(updated)) {
+        setError('La propuesta no tiene campos válidos. Probá de nuevo o creá la planilla manualmente.');
+        return;
+      }
+      setDocument(updated);
+      setPDFDraft(updated);
+      if (name) {
+        try { await saveCurrentPDF(updated); }
+        catch { setError('La propuesta está lista, pero no pudimos guardar el texto en este dispositivo.'); }
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No pudimos generar la propuesta con IA.');
+    } finally {
+      setSuggesting(false);
     }
   }
 
@@ -136,8 +165,9 @@ export default function PDFReaderScreen() {
             <AssistStatus
               kind={scoringDraft ? 'ready' : 'manual'}
               title={activeDocument.scoringSuggestion?.source === 'ai' ? 'Propuesta asistida por IA' : activeDocument.scoringSuggestion ? 'Planilla sugerida desde el reglamento' : scoringDraft ? 'Tabla de puntos detectada' : 'Texto listo para revisión'}
-              description={scoringDraft ? `${scoringDraft.fields.length} campos detectados. Vas a poder corregir nombres, tipos y puntos antes de guardar.` : 'No encontramos una estructura de puntos confiable. Leé los fragmentos y armá la planilla manualmente.'}
+              description={scoringDraft ? `${scoringDraft.fields.length} campos detectados. Vas a poder corregir nombres, tipos y puntos antes de guardar.` : 'No encontramos una estructura de puntos confiable. Podés pedir una propuesta con IA a partir del texto o crear la planilla manualmente.'}
             />
+            {!scoringDraft && activeDocument.text.trim().length >= 40 && <Button mode="contained" icon="auto-fix" loading={suggesting} disabled={suggesting || saving} onPress={suggestWithAI}>Proponer plantilla editable con IA</Button>}
             {activeDocument.scoringSuggestion && scoringDraft ? <View style={styles.card}>
               <Text style={styles.heading}>Propuesta para {scoringDraft.gameName}</Text>
               {scoringDraft.fields.map((field) => <Text key={field.name} style={styles.bodyText}>
