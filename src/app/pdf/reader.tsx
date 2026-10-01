@@ -73,13 +73,13 @@ export default function PDFReaderScreen() {
               value={scoringNotes}
               onChangeText={setScoringNotes}
               placeholder={'• Cada moneda vale 1 punto.\n• Cada objetivo cumplido vale 3 puntos.'}
-              helperText="Una regla por línea. Corregí o agregá viñetas antes de pedir la propuesta."
+              helperText="Una regla por línea. Los fragmentos conservan el idioma original; la propuesta se presenta en español."
               mode="outlined"
               multiline
               numberOfLines={6}
               style={styles.scoringInput}
             />}
-            {!scoringDraft && !canSuggest && <Text style={styles.muted}>{!name ? 'Ingresá el nombre del juego para pedir la propuesta.' : 'Escribí al menos 40 caracteres de reglas de puntuación en las viñetas.'}</Text>}
+            {!scoringDraft && !canSuggest && <Text style={styles.muted}>{!name ? 'Ingresá el nombre del juego para pedir la propuesta.' : 'Necesitamos texto legible del reglamento para preparar una propuesta.'}</Text>}
             {!scoringDraft && <Pressable accessibilityRole="link" onPress={saveAndBuild} disabled={!name || saving || suggesting}><Text style={[styles.link, (!name || saving || suggesting) && styles.disabledLink]}>Armar la planilla manualmente →</Text></Pressable>}
             {!name && <Text style={styles.muted}>Ingresá el nombre del juego para guardar el texto o crear una planilla.</Text>}
             <MeepleDisclosure title="Más opciones del reglamento" expanded={showMoreOptions} onPress={() => setShowMoreOptions((shown) => !shown)} />

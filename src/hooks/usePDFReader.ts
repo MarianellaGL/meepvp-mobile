@@ -42,7 +42,10 @@ export function usePDFReader({ gameId, game, rulebookId, flow }: Params) {
     : sourceExcerpts.map((excerpt) => `• ${excerpt.trim()}`).join('\n');
   const setScoringNotes = (value: string) => setScoringNotesEdit({ key: documentKey, value });
   const scoringPrompt = scoringNotes.split(/\r?\n/).map((line) => line.replace(/^\s*[-•*]\s*/, '').trim()).filter(Boolean).join('\n');
-  const canSuggest = !!activeDocument && scoringPrompt.length >= 40 && scoringPrompt.length <= 120_000 && !!name && name.length <= 120;
+  // The excerpts are editable hints, but a few OCR lines can omit the actual
+  // victory condition. Include the rulebook so the proposal has full evidence.
+  const suggestionText = [scoringPrompt, activeDocument?.text.trim()].filter(Boolean).join('\n\n').slice(0, 120_000);
+  const canSuggest = !!activeDocument && suggestionText.length >= 40 && !!name && name.length <= 120;
 
   const extractMutation = useMutation({ mutationFn: ({ asset, gameName }: { asset: DocumentPicker.DocumentPickerAsset; gameName: string }) => api.extractPDF(asset, gameName) });
   const suggestionMutation = useMutation({ mutationFn: ({ gameName, text }: { gameName: string; text: string }) => api.suggestScoringDraft(gameName, text) });
@@ -81,7 +84,7 @@ export function usePDFReader({ gameId, game, rulebookId, flow }: Params) {
     if (!activeDocument || !canSuggest) return;
     setError(null);
     try {
-      const result = await suggestionMutation.mutateAsync({ gameName: name, text: scoringPrompt });
+      const result = await suggestionMutation.mutateAsync({ gameName: name, text: suggestionText });
       if (!result.scoringSuggestion) {
         setError('La IA no encontró suficientes reglas de puntuación en este texto. Revisá el reglamento o empezá una planilla manual.');
         return;
