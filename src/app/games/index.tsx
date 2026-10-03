@@ -1,100 +1,79 @@
-import { MeepleUnifiedSearchResult, ScoreSkeleton } from '@decodadev02/meepleui';
+import { MeepleGameTile, ScoreButton, ScoreSkeleton, ScoreTextField } from '@decodadev02/meepleui';
 import { router, useLocalSearchParams } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppButton as Button } from '@/components/AppButton';
-import { AppBottomNav } from '@/components/AppBottomNav';
+import type { CollectionGame } from '@/lib/api';
+import { groupSuggestions, normalizeName, type PlayableSuggestion } from '@/features/search/suggestions';
 import { useGameSearch } from '@/features/search/useGameSearch';
-import { navigateToTab } from '@/shared/navigation/tabs';
-import { buildGameDiscoveryEntries, type GameDiscoveryEntry } from '@/lib/gameDiscovery';
+import { Hint, Section } from '@/shared/ui/Section';
+import { Screen } from '@/shared/ui/Screen';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
-import { colors, tokens } from '@/theme';
 
-export default function GamesScreen() {
+export default function SearchScreen() {
   const { flow, query: initialQuery } = useLocalSearchParams<{ flow?: string; query?: string }>();
   const setup = flow === 'setup';
   const collection = useTableScoreStore((state) => state.collection);
-  const availableRules = useTableScoreStore((state) => state.rules);
-  const hasRestored = useTableScoreStore((state) => state.hasRestored);
-  const { query, changeQuery, search, searchFor, searchResult, hasSearched } = useGameSearch(initialQuery);
-  const searching = hasSearched && (searchResult.isPending || searchResult.isFetching);
-  const searchedAs = searching ? undefined : searchResult.data?.searchedAs;
-  const suggestedQuery = searching ? undefined : searchResult.data?.suggestedQuery;
-  // A corrected title also finds the collection and sheets saved on this device.
-  const matchTerm = (searchedAs ?? query).trim().toLocaleLowerCase();
-  const localResults = collection.filter((game) => game.name.toLocaleLowerCase().includes(matchTerm));
-  const entries = hasSearched ? buildGameDiscoveryEntries(
-    [...(searchResult.data?.games ?? []), ...localResults],
-    availableRules.filter((rule) => rule.gameName.toLocaleLowerCase().includes(matchTerm)),
-    searchResult.data?.communityRules ?? [],
-    searchResult.data?.rulebooks ?? [],
-  ) : [];
-  const noResults = hasSearched && !searching && !searchResult.error && entries.length === 0 && searchResult.data?.status !== 'processing';
-  const sourceError = !!searchResult.error || !!searchResult.data?.unavailableSources.length;
+  const deviceSheets = useTableScoreStore((state) => state.rules);
+  const { query, term, changeQuery, searchFor, searchResult, hasSearched } = useGameSearch(initialQuery);
+  const data = searchResult.data;
+  const loading = hasSearched && searchResult.isFetching && !data;
+  // A corrected title also finds the games and sheets saved on this device.
+  const matchTerm = data?.searchedAs ?? term;
+  const owned = matchTerm ? collection.filter((game) => normalizeName(game.name).includes(normalizeName(matchTerm))) : [];
+  const { playable, games } = groupSuggestions(matchTerm, {
+    deviceSheets: hasSearched ? deviceSheets : [],
+    communitySheets: data?.communityRules ?? [],
+    games: [...owned, ...(data?.games ?? [])],
+    rulebooks: data?.rulebooks ?? [],
+  });
+  const cover = (bggId?: number) => {
+    const game = [...owned, ...(data?.games ?? [])].find((item) => item.bggId === bggId);
+    return game?.thumbnailUrl || game?.imageUrl;
+  };
+  const noResults = hasSearched && !!data && !searchResult.isFetching && !playable.length && !games.length && data.status !== 'processing';
 
-  function openGame(entry: GameDiscoveryEntry) {
-    const { game } = entry;
-    if (game.bggId > 0) router.push({ pathname: '/games/[gameId]', params: { gameId: String(game.bggId), name: game.name, ...(setup ? { flow: 'setup' } : {}), ...(game.imageUrl || game.thumbnailUrl ? { imageUrl: game.imageUrl || game.thumbnailUrl } : {}) } });
-    else if (entry.availableSheets.length) router.push({ pathname: '/sessions/new', params: { ruleId: entry.availableSheets[0].id } });
-    else if (entry.communitySheets.length) router.push({ pathname: '/community/rules', params: { game: game.name } });
-    else if (entry.rulebooks.length) router.push({ pathname: '/rulebooks', params: { game: game.name } });
-    else router.push({ pathname: '/games/sources', params: { game: game.name, ...(setup ? { flow: 'setup' } : {}) } });
+  function openGame(game: Pick<CollectionGame, 'bggId' | 'name'>) {
+    router.push({ pathname: '/games/[gameId]', params: { gameId: String(game.bggId), name: game.name, ...(cover(game.bggId) ? { imageUrl: cover(game.bggId) } : {}), ...(setup ? { flow: 'setup' } : {}) } });
   }
 
-  return <SafeAreaView style={styles.safe} edges={['top']}>
-    <FlatList
-      data={searching ? [] : entries}
-      keyExtractor={(entry) => entry.key}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      ListHeaderComponent={<View style={styles.header}>
-        <Text style={styles.eyebrow}>{setup ? 'PARTIDA · PLANILLA' : 'TU BIBLIOTECA'}</Text>
-        <Text style={styles.title}>{noResults ? 'Sin coincidencias' : searching ? `Buscando ${query.trim()}` : entries.length === 1 ? entries[0].game.name : 'Buscá un juego'}</Text>
-        <Text style={styles.subtitle}>{noResults ? 'No encontramos ese juego en las fuentes.' : searching ? 'Estamos consultando juegos, planillas y reglamentos.' : entries.length ? 'Un juego, todas sus opciones.' : 'Encontrá el juego y sus fuentes en una sola búsqueda.'}</Text>
-        {setup && <View accessibilityLabel="Paso 3 de 5" style={styles.progressTrack}><View style={styles.progressFill} /></View>}
-        <TextInput mode="outlined" label="Buscar un juego" value={query} onChangeText={changeQuery} returnKeyType="search" onSubmitEditing={search} style={styles.searchInput} />
-        <Text style={styles.searchHelp}>{hasSearched ? 'BGG, planillas y reglamentos consultados.' : 'Buscamos en tu colección, planillas, reglamentos y BGG.'}</Text>
-        {!setup && <Button mode="contained" icon="magnify" loading={searching} disabled={searching || query.trim().length < 2} onPress={search}>Buscar juego</Button>}
-        {searchedAs && <Text style={styles.searchHelp}>Mostrando resultados para «{searchedAs}».</Text>}
-        {searchResult.data?.status === 'processing' && <Text style={styles.searchHelp}>BGG está preparando resultados. Podés reintentar en {searchResult.data.retryAfterSeconds ?? 5} segundos.</Text>}
-        {!searching && sourceError && <Text style={styles.searchHelp}>{searchResult.error ? 'No pudimos completar la búsqueda. Reintentá para consultar las fuentes.' : 'Algunas fuentes no respondieron. Mostramos las que encontramos; podés reintentar la búsqueda.'}</Text>}
-      </View>}
-      ListEmptyComponent={!hasRestored || searching ? <ScoreSkeleton variant="list" /> : noResults ? <View style={styles.empty}><Text style={styles.emptyTitle}>Probá con otro nombre</Text><Text style={styles.emptyCopy}>También podés usar un PDF, una foto o armar la planilla.</Text></View> : null}
-      renderItem={({ item }) => <MeepleUnifiedSearchResult
-        title={item.game.name}
-        edition={item.game.yearPublished ? `${item.game.yearPublished} · juego base` : undefined}
-        imageUrl={item.game.thumbnailUrl || item.game.imageUrl}
-        sources={item.sources}
-        needsReview={item.needsReview}
-        onPress={() => openGame(item)}
-      />}
-      ListFooterComponent={<View style={styles.footer}>
-        {noResults && suggestedQuery && <Pressable accessibilityRole="link" onPress={() => searchFor(suggestedQuery)}><Text style={styles.link}>¿Quisiste decir «{suggestedQuery}»? →</Text></Pressable>}
-        {noResults && <Pressable accessibilityRole="link" onPress={() => changeQuery('')}><Text style={styles.link}>Buscar otro nombre →</Text></Pressable>}
-        <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/games/sources', params: { ...(query.trim() ? { game: query.trim() } : {}), ...(setup ? { flow: 'setup' } : {}) } })}><Text style={styles.link}>Usar otra fuente →</Text></Pressable>
-      </View>}
-    />
-    {setup ? !hasSearched && <View style={styles.bottomAction}><Button mode="contained" icon="magnify" disabled={query.trim().length < 2} onPress={search}>Buscar juego</Button></View> : <AppBottomNav active="library" onSelect={navigateToTab} />}
-  </SafeAreaView>;
-}
+  function openPlayable(entry: PlayableSuggestion) {
+    if (entry.bggId) openGame({ bggId: entry.bggId, name: entry.gameName });
+    else router.push({ pathname: '/sessions/new', params: { ruleId: entry.sheets[0].id } });
+  }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { gap: 12, padding: 24, paddingBottom: 36 },
-  header: { gap: 12, marginBottom: 8, paddingTop: 10 },
-  eyebrow: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
-  title: { color: colors.ink, fontFamily: tokens.font.heading, fontSize: 27, lineHeight: 35 },
-  subtitle: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-  progressTrack: { backgroundColor: colors.line, borderRadius: 4, height: 5, marginTop: 13, overflow: 'hidden' },
-  progressFill: { backgroundColor: colors.orangeInk, height: '100%', width: '60%' },
-  searchInput: { marginTop: 12 },
-  searchHelp: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  empty: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 16, borderWidth: 1, gap: 8, padding: 18 },
-  emptyTitle: { color: colors.ink, fontSize: 18, fontWeight: '800' },
-  emptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 19 },
-  footer: { gap: 16, paddingTop: 16 },
-  link: { color: colors.orangeInk, fontSize: 14, fontWeight: '700' },
-  bottomAction: { backgroundColor: colors.canvas, paddingHorizontal: 24, paddingVertical: 14 },
-});
+  return <Screen eyebrow={setup ? 'PARTIDA · PLANILLA' : 'BIBLIOTECA'} title="Buscá un juego" tab={setup ? undefined : 'library'} onBack={setup ? () => router.back() : undefined}>
+    <ScoreTextField label="Juego" placeholder="Covenant, Everdell…" value={query} onChangeText={changeQuery} returnKeyType="search" onSubmitEditing={() => searchFor(query)} />
+
+    {!hasSearched && <Hint>Escribí el nombre: te mostramos primero los juegos que ya tienen planilla.</Hint>}
+    {data?.searchedAs && <Hint>Mostrando resultados para «{data.searchedAs}».</Hint>}
+    {data?.status === 'processing' && <Hint>BGG está preparando resultados. Probá de nuevo en {data.retryAfterSeconds ?? 5} segundos.</Hint>}
+    {searchResult.error && <Hint tone="error">{searchResult.error.message}</Hint>}
+    {!!data?.unavailableSources.length && <Hint>Algunas fuentes no respondieron; mostramos lo que encontramos.</Hint>}
+    {loading && <ScoreSkeleton variant="list" />}
+
+    {playable.length > 0 && <Section label="CON PLANILLA">
+      {playable.map((entry) => <MeepleGameTile
+        key={entry.key}
+        title={entry.gameName}
+        detail={`${entry.sheets.length} ${entry.sheets.length === 1 ? 'planilla' : 'planillas'}${entry.fromCommunity ? ' de la comunidad' : ''} · Lista para jugar`}
+        imageUrl={cover(entry.bggId)}
+        onPress={() => openPlayable(entry)}
+      />)}
+    </Section>}
+
+    {games.length > 0 && <Section label="JUEGOS">
+      {games.map(({ game, hasRulebook }) => <MeepleGameTile
+        key={`${game.bggId}-${game.name}`}
+        title={game.name}
+        detail={[game.yearPublished, hasRulebook ? 'Reglamento disponible' : undefined].filter(Boolean).join(' · ') || undefined}
+        imageUrl={game.thumbnailUrl || game.imageUrl}
+        onPress={() => openGame(game)}
+      />)}
+    </Section>}
+
+    {noResults && <Section label="SIN RESULTADOS">
+      <Hint>No encontramos «{term}».</Hint>
+      {data?.suggestedQuery && <ScoreButton label={`¿Quisiste decir «${data.suggestedQuery}»?`} variant="tertiary" onPress={() => searchFor(data.suggestedQuery!)} />}
+      <ScoreButton label="Crear la planilla igual" variant="secondary" icon="plus" onPress={() => router.push({ pathname: '/rules/new', params: { game: term, ...(setup ? { flow: 'setup' } : {}) } })} />
+    </Section>}
+  </Screen>;
+}
