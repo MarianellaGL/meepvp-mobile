@@ -59,9 +59,9 @@ export type FieldKind = 'checkbox' | 'counter' | 'manual';
 export type ScoreField = { id: string; name: string; kind: FieldKind; pointsPerUnit: number };
 export type ScoringRule = { id: string; bggId?: number; rulebookId?: string; gameName: string; name: string; winCondition: 'highest_total' | 'lowest_total'; fields: ScoreField[]; isPublic: boolean; createdAt: string };
 export type CreateScoringRule = Omit<ScoringRule, 'id' | 'createdAt' | 'fields'> & { fields: Omit<ScoreField, 'id'>[] };
-export type Player = { id: string; name: string };
+export type Player = { id: string; name: string; /** At the table; only waiting games use it. */ joined?: boolean };
 export type SessionTotal = { playerId: string; total: number };
-export type ScoreSession = { id: string; tableCode: string; ruleId: string; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: 'active' | 'paused' | 'finished'; playedSeconds: number; durationSeconds: number; runningSince?: string; pausedAt?: string; boardPhotoUpdatedAt?: string; createdAt: string; lastModified: string; finishedAt?: string; totals: SessionTotal[]; winners: SessionTotal[] };
+export type ScoreSession = { id: string; tableCode: string; ruleId: string; /** The game's sheet, sent even when it is someone else's private sheet. */ rule?: ScoringRule; players: Player[]; values: Record<string, Record<string, number>>; manualPoints?: Record<string, number>; status: 'waiting' | 'active' | 'paused' | 'finished'; playedSeconds: number; durationSeconds: number; runningSince?: string; pausedAt?: string; boardPhotoUpdatedAt?: string; createdAt: string; lastModified: string; finishedAt?: string; totals: SessionTotal[]; winners: SessionTotal[] };
 export type ScheduledGame = { id: string; tableCode: string; gameName: string; ruleId?: string; scheduledAt: string; players: string[]; sessionId?: string; createdAt: string };
 export type AccountUser = { id: string; username: string; createdAt: string };
 export type AuthSession = { user: AccountUser; token: string };
@@ -167,7 +167,9 @@ export const api = {
       throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status);
     }
   },
-  createSession: (tableCode: string, hostToken: string, ruleId: string, players: string[]) => request<ScoreSession>(`/v1/tables/${encodeURIComponent(tableCode)}/sessions`, { method: 'POST', headers: { 'X-Table-Token': hostToken }, body: JSON.stringify({ ruleId, players: players.map((name) => ({ name })) }) }),
+  // With several players the game waits until everyone joins (or the host starts it).
+  createSession: (tableCode: string, hostToken: string, ruleId: string, players: string[]) => request<ScoreSession>(`/v1/tables/${encodeURIComponent(tableCode)}/sessions`, { method: 'POST', headers: { 'X-Table-Token': hostToken }, body: JSON.stringify({ ruleId, players: players.map((name) => ({ name })), waitForPlayers: players.length > 1 }) }),
+  startSession: (sessionId: string, hostToken: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/start`, { method: 'POST', headers: { 'X-Table-Token': hostToken } }),
   getSession: (sessionId: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}`),
   addPlayer: (sessionId: string, name: string) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/players`, { method: 'POST', body: JSON.stringify({ name }) }),
   updateScores: (sessionId: string, values: ScoreSession['values']) => request<ScoreSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/scores`, { method: 'PUT', body: JSON.stringify({ values }) }),

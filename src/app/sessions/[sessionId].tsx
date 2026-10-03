@@ -6,6 +6,7 @@ import { MeepleDisclosure, ScoreCheckbox, ScoreTextField as TextInput } from '@d
 import { ActivityIndicator, IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { WaitingRoom } from '@/features/sessions/WaitingRoom';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { colors } from '@/theme';
@@ -91,7 +92,7 @@ export default function ScoringScreen() {
   const [showInvite, setShowInvite] = useState(false);
   const [showPhotoOptions, setShowPhotoOptions] = useState(false);
   const {
-    session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, refreshSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
+    session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, refreshSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, startSession, isStartingSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
     isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isPausingSession, isResumingSession, isUploadingBoardPhoto, isReopeningSession, isJoiningSession,
   } = useTableScoreStore();
   const accountPlayerId = useAuthStore((state) => state.sessions.find((game) => game.id === sessionId)?.myPlayerId);
@@ -130,7 +131,8 @@ export default function ScoringScreen() {
     );
   }
 
-  const rule = rules.find((candidate) => candidate.id === session.ruleId);
+  // Guests may not have the host's private sheet saved; the game brings it.
+  const rule = rules.find((candidate) => candidate.id === session.ruleId) ?? session.rule;
   if (!rule) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -139,6 +141,10 @@ export default function ScoringScreen() {
         ) : <ActivityIndicator size="large" />}
       </SafeAreaView>
     );
+  }
+
+  if (session.status === 'waiting') {
+    return <WaitingRoom session={session} gameName={rule.gameName} isHost={isHost} selfPlayerId={selfPlayerId} starting={isStartingSession} error={error} onStart={() => startSession().catch(() => undefined)} />;
   }
 
   const isFinished = session.status === 'finished';
