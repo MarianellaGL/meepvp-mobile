@@ -7,6 +7,13 @@ import { loadSavedLibrary, saveLibrary } from '@/lib/savedLibrary';
 import { loadSavedPDFs, savePDFs, type SavedPDF } from '@/lib/savedPDFs';
 import { requestReminderPermission, syncScoreSheetReminders } from '@/lib/sheetReminders';
 
+// The API lists public sheets plus the account's own; sheets saved on this
+// device without an account must stay available after a reload.
+function keepLocalRules(server: ScoringRule[], local: ScoringRule[]): ScoringRule[] {
+  const ids = new Set(server.map((rule) => rule.id));
+  return [...server, ...local.filter((rule) => !ids.has(rule.id))];
+}
+
 let collectionController: AbortController | null = null;
 function waitForRetry(seconds: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -136,7 +143,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
         catch { /* A schedule connection error must not hide the saved game. */ }
       }
       try {
-        const rules = await api.listScoringRules();
+        const rules = keepLocalRules(await api.listScoringRules(), savedLibrary.scoringRules);
         set({ rules });
         await saveLibrary({ username: savedLibrary.username, collection: savedLibrary.collection, scoringRules: rules, players: savedLibrary.players, myPlayerName: savedLibrary.myPlayerName });
       } catch {
@@ -359,7 +366,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   },
   async loadRules() {
     try {
-      const rules = await api.listScoringRules();
+      const rules = keepLocalRules(await api.listScoringRules(), get().rules);
       set({ rules });
       try { await saveLibrary({ username: get().username, collection: get().collection, scoringRules: rules, players: get().knownPlayers, myPlayerName: get().myPlayerName }); }
       catch { set({ error: 'Cargamos las planillas, pero este dispositivo no pudo guardar una copia sin conexión.' }); }
