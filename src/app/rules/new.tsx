@@ -1,146 +1,127 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScoreSwitch, ScoreTextField as TextInput } from '@decodadev02/meepleui';
-import { IconButton, SegmentedButtons, Text } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { MeepleAssistStatus, MeepleDisclosure, ScoreButton, ScoreDropdown, ScoreSwitch, ScoreTextField } from '@decodadev02/meepleui';
 
-import type { CreateScoringRule, FieldKind } from '@/lib/api';
+import { FieldRow } from '@/features/sheets/components/FieldRow';
+import { draftFromSuggestion, draftProblems, emptyField, toCreateRule, withSuggestedFields, type DraftField, type SheetDraft, type WinCondition } from '@/features/sheets/draft';
+import { useProposeSheet, useSaveSheet } from '@/features/sheets/queries';
 import { extractScoringDraft } from '@/lib/scoringDraft';
-import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { Hint, Section } from '@/shared/ui/Section';
+import { Screen } from '@/shared/ui/Screen';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { colors, tokens } from '@/theme';
-import { AppButton as Button } from '@/components/AppButton';
-import { AssistStatus } from '@/components/AssistStatus';
+import { useTableScoreStore } from '@/stores/useTableScoreStore';
+import { tokens } from '@/theme';
 
-type DraftField = { name: string; kind: FieldKind; pointsPerUnit: string };
-const emptyField = (): DraftField => ({ name: '', kind: 'checkbox', pointsPerUnit: '1' });
+const winOptions = [{ value: 'highest_total', label: 'Gana quien suma más' }, { value: 'lowest_total', label: 'Gana quien suma menos' }];
 
-export default function NewRuleScreen() {
-  const { gameId, game: selectedGame, fromPdf, fromImage, planId, flow } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; fromImage?: string; planId?: string; flow?: string }>();
-  const { createScoringRule, setScheduledGameRule, error, pdfDraft, setPDFDraft } = useTableScoreStore();
-  const importedDraft = (fromPdf === '1' || fromImage === '1') && pdfDraft ? extractScoringDraft(pdfDraft) : null;
-  const [gameName, setGameName] = useState(selectedGame ?? importedDraft?.gameName ?? '');
-  const [name, setName] = useState('Puntuación estándar');
-  const [winCondition, setWinCondition] = useState<'highest_total' | 'lowest_total'>('highest_total');
-  const [isPublic, setIsPublic] = useState(false);
-  const [fields, setFields] = useState<DraftField[]>(() => importedDraft?.fields.map((field) => ({ ...field, pointsPerUnit: String(field.pointsPerUnit) })) ?? [emptyField()]);
-  const [isSaving, setIsSaving] = useState(false);
+export default function SheetEditorScreen() {
+  const { gameId, game, fromPdf, fromImage, planId, flow } = useLocalSearchParams<{ gameId?: string; game?: string; fromPdf?: string; fromImage?: string; planId?: string; flow?: string }>();
+  const pdfDraft = useTableScoreStore((state) => state.pdfDraft);
   const account = useAuthStore((state) => state.user);
+  const source = (fromPdf === '1' || fromImage === '1') ? pdfDraft : null;
+  const detected = source ? extractScoringDraft(source) : null;
+  const [draft, setDraft] = useState<SheetDraft>(() => draftFromSuggestion(game ?? '', detected));
+  // A fresh sheet opens its first category; a detected one starts collapsed for review.
+  const [expanded, setExpanded] = useState<string | null>(detected ? null : draft.fields[0]?.key ?? null);
+  const [showSource, setShowSource] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [triedToSave, setTriedToSave] = useState(false);
+  const save = useSaveSheet();
+  const propose = useProposeSheet();
+  const problems = draftProblems(draft);
+  const sourceName = source?.rulebook?.name ?? source?.fileName;
+  const notes = propose.data?.scoringSuggestion?.notes ?? detected?.notes ?? [];
+  const proposalText = source ? [source.scoringExcerpts.join('\n'), source.text].filter(Boolean).join('\n\n').slice(0, 120_000) : '';
+  const hasNamedFields = draft.fields.some((field) => field.name.trim());
 
-  const updateField = (index: number, updates: Partial<DraftField>) =>
-    setFields((current) => current.map((field, i) => i === index ? { ...field, ...updates } : field));
+  const update = (changes: Partial<SheetDraft>) => setDraft((current) => ({ ...current, ...changes }));
+  const updateField = (key: string, changes: Partial<DraftField>) =>
+    setDraft((current) => ({ ...current, fields: current.fields.map((field) => field.key === key ? { ...field, ...changes } : field) }));
 
-  async function saveRule() {
-    if (!gameName.trim() || fields.some((field) => !field.name.trim())) return;
-    const rule: CreateScoringRule = {
-      ...(fromPdf === '1' && pdfDraft?.rulebook ? { rulebookId: pdfDraft.rulebook.id } : {}),
-      ...(Number.isSafeInteger(Number(gameId)) && Number(gameId) > 0 ? { bggId: Number(gameId) } : {}),
-      gameName: gameName.trim(),
-      name: name.trim() || 'Puntuación estándar',
-      winCondition,
-      isPublic: isPublic && !!account,
-      fields: fields.map((field) => ({
-        name: field.name.trim(),
-        kind: field.kind,
-        pointsPerUnit: Number(field.pointsPerUnit) || 0,
-      })),
-    };
-    setIsSaving(true);
-    try {
-      const savedRule = await createScoringRule(rule);
-      if (fromPdf === '1' || fromImage === '1') setPDFDraft(null);
-      if (planId) {
-        await setScheduledGameRule(planId, savedRule.id);
-        router.replace('/schedule');
-      } else {
-        router.replace({ pathname: '/sessions/new', params: { ruleId: savedRule.id } });
-      }
-    }
-    catch { /* The store displays the error. */ }
-    finally { setIsSaving(false); }
+  function addField() {
+    const field = emptyField();
+    setDraft((current) => ({ ...current, fields: [...current.fields, field] }));
+    setExpanded(field.key);
   }
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.topRow}><IconButton icon="arrow-left" iconColor={colors.forest} onPress={() => router.back()} /><Text style={styles.topLabel}>{flow === 'setup' ? 'PARTIDA · PLANILLA' : 'NUEVA PLANILLA'}</Text><View style={styles.topSpacer} /></View>
-        <Text style={styles.title}>{fromPdf === '1' || fromImage === '1' ? 'Revisá la planilla' : 'Armá tu planilla'}</Text>
-        <Text style={styles.subtitle}>Confirmá los campos y sus puntos antes de guardar.</Text>
-        {flow === 'setup' && <View accessibilityLabel="Paso 5 de 5" style={styles.progressTrack}><View style={styles.progressFill} /></View>}
+  function proposeWithAI() {
+    propose.mutate({ gameName: draft.gameName.trim(), text: proposalText }, {
+      onSuccess: ({ scoringSuggestion }) => {
+        if (!scoringSuggestion?.fields.length) return;
+        setDraft((current) => withSuggestedFields(current, scoringSuggestion));
+        setExpanded(null);
+      },
+    });
+  }
 
-        {(fromPdf === '1' || fromImage === '1') && pdfDraft && (
-          <View style={styles.formCard}>
-            <Text style={styles.sectionLabel}>DESDE {pdfDraft.fileName.toUpperCase()}</Text>
-            {importedDraft ? <>
-              <AssistStatus kind="ready" title={pdfDraft.scoringSuggestion?.source === 'ai' ? 'Propuesta asistida por IA' : 'Campos importados para revisar'} description={`Cargamos ${importedDraft.fields.length} campos. Confirmá cada multiplicador y modificá lo que haga falta antes de guardar.`} />
-              {importedDraft.notes.map((note) => <Text key={note} style={styles.shareCopy}>{note}</Text>)}
-            </> : <>
-              <AssistStatus title="Armá la planilla con el texto" description={pdfDraft.scoringExcerpts.length ? `Usá estos fragmentos como referencia y revisá ${fromImage === '1' ? 'la imagen' : 'el PDF'} antes de asignar puntos.` : 'No encontramos fragmentos sobre puntuación. Agregá los campos según el reglamento.'} />
-              {pdfDraft.scoringExcerpts.slice(0, 5).map((excerpt, index) => <Text key={`${index}-${excerpt.slice(0, 10)}`} style={styles.pdfExcerpt}>{excerpt}</Text>)}
-            </>}
-          </View>
-        )}
+  function saveAndPlay() {
+    setTriedToSave(true);
+    if (problems.length) return;
+    const rule = toCreateRule(draft, { bggId: Number(gameId), rulebookId: fromPdf === '1' ? source?.rulebook?.id : undefined, canPublish: !!account });
+    save.mutate(rule, {
+      onSuccess: async (saved) => {
+        if (source) useTableScoreStore.getState().setPDFDraft(null);
+        if (planId) {
+          await useTableScoreStore.getState().setScheduledGameRule(planId, saved.id).catch(() => undefined);
+          router.replace('/schedule');
+        } else {
+          router.replace({ pathname: '/sessions/new', params: { ruleId: saved.id } });
+        }
+      },
+    });
+  }
 
-        <View style={styles.formCard}>
-          <Text style={styles.sectionLabel}>LO BÁSICO</Text>
-          <TextInput label="Nombre del juego" value={gameName} onChangeText={setGameName} mode="outlined" />
-          <TextInput label="Nombre de la planilla" value={name} onChangeText={setName} mode="outlined" />
-          <Text style={styles.fieldLabel}>¿Quién gana?</Text>
-          <SegmentedButtons value={winCondition} onValueChange={(value) => setWinCondition(value as typeof winCondition)} buttons={[{ value: 'highest_total', label: 'Más puntos' }, { value: 'lowest_total', label: 'Menos puntos' }]} />
-        </View>
+  return <Screen
+    eyebrow={flow === 'setup' ? 'PARTIDA · PLANILLA' : 'PLANILLA'}
+    title={draft.gameName.trim() || 'Nueva planilla'}
+    subtitle={sourceName ? `Desde ${sourceName}. Revisá los puntos antes de jugar.` : 'Definí cómo se suman los puntos.'}
+    onBack={() => router.back()}
+    footer={<>
+      {triedToSave && problems.length > 0 && <Hint tone="error">{problems[0]}</Hint>}
+      {save.error && <Hint tone="error">{save.error.message}</Hint>}
+      <ScoreButton label={planId ? 'Guardar para la partida programada' : 'Guardar y jugar'} icon="play" loading={save.isPending} disabled={save.isPending} onPress={saveAndPlay} />
+    </>}
+  >
+    {!game && <ScoreTextField label="Juego" placeholder="Everdell, Catan…" value={draft.gameName} onChangeText={(gameName) => update({ gameName })} />}
 
-        <View style={styles.shareCard}>
-          <ScoreSwitch label="Compartir planilla con la comunidad" value={isPublic && !!account} onChange={setIsPublic} disabled={!account} />
-          {!account && <View style={styles.sharePrompt}>
-            <Text style={styles.shareCopy}>Iniciá sesión para publicar una planilla en la comunidad.</Text>
-            <Button mode="text" style={styles.loginButton} onPress={() => router.push('/auth')}>Iniciar sesión o registrarse</Button>
-          </View>}
-        </View>
+    {source && !hasNamedFields && !propose.isPending && <MeepleAssistStatus kind="manual" title="No encontramos una tabla de puntos" description="Pedí una propuesta a la IA a partir del reglamento, o armá las categorías vos." />}
+    {propose.isPending && <MeepleAssistStatus kind="working" title="Leyendo el reglamento" description="Preparamos las categorías para que las revises." />}
+    {propose.error && <MeepleAssistStatus kind="error" title="No pudimos proponer la planilla" description={propose.error.message} />}
+    {propose.data && !propose.data.scoringSuggestion && <MeepleAssistStatus kind="manual" title="La IA no encontró cómo se puntúa" description="Armá las categorías con el reglamento a mano." />}
+    {source && !hasNamedFields && <ScoreButton label="Proponer con IA" variant="secondary" icon="auto-fix" loading={propose.isPending} disabled={propose.isPending || proposalText.length < 40 || !draft.gameName.trim()} onPress={proposeWithAI} />}
 
-        <View style={styles.sectionHeader}><View><Text style={styles.sectionLabel}>ARMÁ LA PUNTUACIÓN</Text><Text variant="headlineSmall" style={styles.heading}>Campos de puntos</Text></View><Text style={styles.fieldCount}>{fields.length} en total</Text></View>
-        {fields.map((field, index) => (
-          <View key={index} style={styles.fieldCard}>
-            <View style={styles.fieldHeader}><Text style={styles.fieldNumber}>CAMPO {index + 1}</Text>{fields.length > 1 && <IconButton icon="delete-outline" iconColor={colors.error} onPress={() => setFields((current) => current.filter((_, i) => i !== index))} />}</View>
-            <TextInput label="Nombre del campo" placeholder="Monedas, objetivos, penalizaciones…" value={field.name} onChangeText={(value) => updateField(index, { name: value })} mode="outlined" />
-            <SegmentedButtons value={field.kind} onValueChange={(value) => updateField(index, { kind: value as FieldKind })} buttons={[{ value: 'checkbox', label: 'Marca' }, { value: 'counter', label: 'Contador' }, { value: 'manual', label: 'Manual' }]} />
-            {field.kind !== 'manual' && <TextInput label="Puntos por unidad" keyboardType="numbers-and-punctuation" value={field.pointsPerUnit} onChangeText={(value) => updateField(index, { pointsPerUnit: value })} mode="outlined" />}
-          </View>
-        ))}
-        <Button mode="outlined" icon="plus" onPress={() => setFields((current) => [...current, emptyField()])}>Agregar campo</Button>
-        {error && <Text style={styles.error}>{error}</Text>}
-      </ScrollView>
-      <View style={styles.bottomAction}><Button mode="contained" icon="content-save-outline" loading={isSaving} disabled={!gameName.trim() || fields.some((field) => !field.name.trim()) || isSaving} onPress={saveRule}>{planId ? 'Guardar para la partida programada' : 'Guardar planilla'}</Button></View>
-    </SafeAreaView>
-  );
+    <Section label={`CATEGORÍAS · ${draft.fields.length}`}>
+      {draft.fields.map((field) => <FieldRow
+        key={field.key}
+        field={field}
+        expanded={expanded === field.key}
+        onToggle={() => setExpanded((current) => current === field.key ? null : field.key)}
+        onChange={(changes) => updateField(field.key, changes)}
+        onRemove={draft.fields.length > 1 ? () => setDraft((current) => ({ ...current, fields: current.fields.filter((item) => item.key !== field.key) })) : undefined}
+      />)}
+      <ScoreButton label="Añadir categoría" variant="tertiary" icon="plus" onPress={addField} />
+    </Section>
+
+    {notes.length > 0 && <Section label="PARA REVISAR">
+      {notes.map((note) => <Hint key={note}>• {note}</Hint>)}
+    </Section>}
+
+    {source && source.scoringExcerpts.length > 0 && <>
+      <MeepleDisclosure title="Lo que dice el reglamento" detail="Fragmentos sobre puntuación" expanded={showSource} onPress={() => setShowSource((shown) => !shown)} />
+      {showSource && source.scoringExcerpts.slice(0, 8).map((excerpt, index) => <Text key={`${index}-${excerpt.slice(0, 12)}`} style={styles.excerpt}>{excerpt}</Text>)}
+    </>}
+
+    <MeepleDisclosure title="Ajustes" detail={`${draft.name} · ${draft.winCondition === 'lowest_total' ? 'gana quien suma menos' : 'gana quien suma más'}`} expanded={showSettings} onPress={() => setShowSettings((shown) => !shown)} />
+    {showSettings && <Section label="AJUSTES">
+      <ScoreTextField label="Nombre de la planilla" value={draft.name} onChangeText={(name) => update({ name })} />
+      <ScoreDropdown label="¿Quién gana?" value={draft.winCondition} options={winOptions} onChange={(value) => update({ winCondition: value as WinCondition })} />
+      <ScoreSwitch label="Compartir con la comunidad" value={draft.isPublic && !!account} disabled={!account} onChange={(isPublic) => update({ isPublic })} />
+      {!account && <Hint>Iniciá sesión para compartir planillas.</Hint>}
+    </Section>}
+  </Screen>;
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { gap: 13, padding: 24, paddingBottom: 40 },
-  topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginLeft: -12 },
-  topLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  topSpacer: { width: 40 },
-  title: { color: colors.ink, fontFamily: tokens.font.heading, fontSize: 27, lineHeight: 35, marginTop: 6 },
-  subtitle: { color: colors.muted, fontSize: 15, lineHeight: 21, marginBottom: 10 },
-  formCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 23, borderWidth: 1, gap: 14, padding: 17 },
-  sectionLabel: { color: colors.orangeInk, fontSize: 10, fontWeight: '800', letterSpacing: 1.4 },
-  fieldLabel: { color: colors.ink, fontSize: 14, fontWeight: '700', marginTop: 3 },
-  shareCard: { backgroundColor: colors.mint, borderRadius: 19, gap: 8, padding: 15 },
-  sharePrompt: { alignItems: 'flex-start', gap: 2 },
-  loginButton: { alignSelf: 'flex-start' },
-  shareText: { flex: 1 },
-  shareTitle: { color: colors.ink, fontSize: 14, fontWeight: '800' },
-  shareCopy: { color: colors.muted, fontSize: 12, marginTop: 3 },
-  sectionHeader: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: 13 },
-  heading: { color: colors.ink, fontWeight: '800', marginTop: 3 },
-  fieldCount: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  fieldCard: { backgroundColor: colors.paper, borderColor: colors.line, borderRadius: 21, borderWidth: 1, gap: 12, padding: 16 },
-  fieldHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 20 },
-  fieldNumber: { color: colors.forest, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  progressTrack: { backgroundColor: colors.line, borderRadius: 4, height: 5, marginTop: 8, marginBottom: 8, overflow: 'hidden' },
-  progressFill: { backgroundColor: colors.orangeInk, height: '100%', width: '100%' },
-  bottomAction: { backgroundColor: colors.canvas, paddingHorizontal: 24, paddingVertical: 12 },
-  error: { color: colors.error },
-  pdfExcerpt: { color: colors.ink, fontSize: 12, lineHeight: 18 },
+  excerpt: { color: tokens.color.secondaryText, fontFamily: tokens.font.body, fontSize: 13, lineHeight: 19 },
 });
