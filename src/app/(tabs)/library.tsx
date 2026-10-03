@@ -5,6 +5,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BGGImportSection } from '@/features/collection/BGGImportSection';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 
@@ -53,9 +54,10 @@ export default function LibraryScreen() {
           {savedPDFs.map((pdf) => <MeepleLibraryEntry key={pdf.gameId ?? pdf.gameName} title={pdf.gameName} detail={pdf.document.fileName} onPress={() => router.push({ pathname: '/pdf/reader', params: { game: pdf.gameName, ...(pdf.gameId ? { gameId: String(pdf.gameId) } : {}) } })} />)}
         </View>}
 
+        <BGGImportSection />
         <View style={styles.sectionHeading}><View><Text style={styles.sectionLabel}>MIS JUEGOS</Text><Text style={styles.count}>{collection.length} en tu colección</Text></View></View>
       </View>}
-      ListEmptyComponent={!hasRestored ? <ScoreSkeleton variant="list" /> : <Text style={styles.emptyCopy}>Tu colección está vacía. Buscá un juego o importá tus juegos desde Inicio.</Text>}
+      ListEmptyComponent={!hasRestored ? <ScoreSkeleton variant="list" /> : <Text style={styles.emptyCopy}>Tu colección está vacía. Buscá un juego o importá tu colección de BGG.</Text>}
       renderItem={({ item }) => {
         const hasSheet = rules.some((rule) => rule.bggId === item.bggId || (!rule.bggId && rule.gameName.trim().toLocaleLowerCase() === item.name.trim().toLocaleLowerCase()));
         return <MeepleGameTile

@@ -4,6 +4,10 @@ import { fetch as expoFetch } from 'expo/fetch';
 import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 
+import { APIRequestError, apiErrorMessage, baseURL, getAuthToken, request } from '@/shared/api/client';
+
+export { APIRequestError, baseURL, setAuthToken } from '@/shared/api/client';
+
 export type CollectionGame = {
   bggId: number;
   name: string;
@@ -29,6 +33,10 @@ export type GameDiscovery = {
   rulebooks: Rulebook[];
   cachedRulebooks: boolean;
   unavailableSources: ('bgg' | 'community' | 'rulebooks')[];
+  /** Catalog title searched instead of a misspelled query. */
+  searchedAs?: string;
+  /** AI suggestion when nothing matched; only searched if the person taps it. */
+  suggestedQuery?: string;
 };
 
 export type APIHealth = { status: 'ok' };
@@ -36,7 +44,7 @@ export type APIHealth = { status: 'ok' };
 export type RulesThread = { id: number; title: string; author: string; posts: number; url: string };
 export type GameRules = { status: 'ready' | 'processing'; retryAfterSeconds?: number; forumUrl?: string; totalThreads: number; threads: RulesThread[] };
 export type ScoringSuggestion = { gameName: string; fields: { name: string; kind: FieldKind; pointsPerUnit: number }[]; notes: string[]; source?: 'ai' };
-export type Rulebook = { id: string; source: string; sourceId: string; name: string; language: 'en' | 'fr'; edition?: string; pdfUrl: string; createdAt: string; updatedAt: string };
+export type Rulebook = { id: string; source: string; sourceId: string; name: string; language: 'en' | 'fr'; edition?: string; pdfUrl: string; bggId?: number; createdAt: string; updatedAt: string };
 export type RulebookSearch = { results: Rulebook[]; cached: boolean };
 export type PDFExtract = { fileName: string; pages: number; text: string; scoringExcerpts: string[]; scoringSuggestion?: ScoringSuggestion; rulebook?: Rulebook };
 
@@ -60,51 +68,6 @@ export type AuthSession = { user: AccountUser; token: string };
 export type AccountStats = { finishedGames: number; wins: number; ties: number; totalPoints: number };
 export type AccountGameSession = ScoreSession & { gameName: string; myPlayerId: string };
 
-export const baseURL = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, '') || 'http://localhost:8080';
-let authToken: string | null = null;
-export function setAuthToken(token: string | null) { authToken = token; }
-export class APIRequestError extends Error {
-  constructor(message: string, public status: number, public retryAfterSeconds?: number) { super(message); }
-}
-
-function apiErrorMessage(message: string | undefined, status: number): string {
-  const known: Record<string, string> = {
-    'invalid username or password': 'Usuario o contraseña incorrectos.',
-    'username is already taken': 'Ese nombre de usuario ya está en uso.',
-    'login required': 'Tenés que iniciar sesión.',
-    'host token required': 'Solo el anfitrión puede hacer eso.',
-    'resource not found': 'No encontramos lo que buscabas.',
-    'invalid input': 'Revisá los datos ingresados.',
-    'rulebook catalog unavailable': 'No pudimos consultar el catálogo de reglamentos. Reintentá en unos minutos.',
-    'could not download rulebook': 'No pudimos descargar ese reglamento. Reintentá o elegí otro.',
-    'could not extract rulebook PDF': 'No pudimos leer ese PDF. Podés probar con otro reglamento.',
-    'AI scoring assistant unavailable': 'La asistencia de IA no está disponible ahora. Podés crear la planilla manualmente.',
-    'AI provider quota exhausted': 'La asistencia de IA alcanzó su límite de uso. Podés continuar con una planilla manual.',
-    'AI provider rate limited': 'La asistencia de IA está ocupada. Esperá un momento y volvé a intentar.',
-    'AI provider authentication failed': 'La asistencia de IA no está configurada correctamente. Podés continuar con una planilla manual.',
-    'could not generate scoring suggestion': 'No pudimos generar una propuesta con IA. Reintentá o creá la planilla manualmente.',
-  };
-  if (message && known[message]) return known[message];
-  if (status === 429) return 'Hay demasiadas solicitudes. Esperá un momento y reintentá.';
-  if (status >= 500) return 'El servidor tuvo un problema. Reintentá en unos minutos.';
-  return 'No pudimos completar la solicitud. Revisá los datos e intentá de nuevo.';
-}
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseURL}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...options?.headers },
-  });
-  const body = await response.json().catch(() => null) as (T & { error?: string; retryAfterSeconds?: number }) | null;
-  if (!response.ok && response.status !== 202) {
-    const headerRetry = Number(response.headers.get('Retry-After'));
-    const retryAfter = body?.retryAfterSeconds ?? (Number.isFinite(headerRetry) && headerRetry > 0 ? headerRetry : undefined);
-    throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status, retryAfter);
-  }
-  if (body === null) throw new APIRequestError('El servidor devolvió una respuesta inválida. Reintentá en unos minutos.', response.status);
-  return body;
-}
-
 export const api = {
   searchDiscovery: (query: string) => request<GameDiscovery>(`/v1/discovery/search?query=${encodeURIComponent(query.trim())}`),
   searchRulebooks: (query: string, language: 'en' | 'fr' = 'en') => request<RulebookSearch>(`/v1/rulebooks?query=${encodeURIComponent(query.trim())}&language=${language}`),
@@ -119,9 +82,9 @@ export const api = {
   getMyTables: () => request<AnonymousTable[]>('/v1/me/tables'),
   claimTable: (code: string, hostToken: string) => request<AnonymousTable>('/v1/me/claim-table', { method: 'POST', body: JSON.stringify({ code, hostToken }) }),
   async getMyAvatar(): Promise<string | null> {
-    if (!authToken) return null;
+    if (!getAuthToken()) return null;
     const downloadFetch = Platform.OS === 'web' ? fetch : expoFetch;
-    const response = await downloadFetch(`${baseURL}/v1/me/avatar`, { headers: { Authorization: `Bearer ${authToken}` }, cache: 'no-store' });
+    const response = await downloadFetch(`${baseURL}/v1/me/avatar`, { headers: { Authorization: `Bearer ${getAuthToken()}` }, cache: 'no-store' });
     if (response.status === 404) return null;
     if (!response.ok) throw new APIRequestError('No pudimos descargar tu avatar.', response.status);
     const mime = response.headers.get('Content-Type') ?? 'image/jpeg';
@@ -133,7 +96,7 @@ export const api = {
     return file.uri;
   },
   async saveMyAvatar(asset: ImagePickerAsset): Promise<void> {
-    if (!authToken) throw new Error('Iniciá sesión para sincronizar el avatar.');
+    if (!getAuthToken()) throw new Error('Iniciá sesión para sincronizar el avatar.');
     if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('La foto supera los 5 MB. Elegí una imagen más liviana.');
     const mime = asset.mimeType ?? 'image/jpeg';
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('Elegí una imagen JPEG, PNG o WebP.');
@@ -142,15 +105,15 @@ export const api = {
     if (Platform.OS === 'web' && asset.file) data.append('file', asset.file, name);
     else data.append('file', new File(asset.uri), name);
     const uploadFetch = Platform.OS === 'web' ? fetch : expoFetch;
-    const response = await uploadFetch(`${baseURL}/v1/me/avatar`, { method: 'PUT', headers: { Authorization: `Bearer ${authToken}` }, body: data });
+    const response = await uploadFetch(`${baseURL}/v1/me/avatar`, { method: 'PUT', headers: { Authorization: `Bearer ${getAuthToken()}` }, body: data });
     if (!response.ok) {
       const body = await response.json().catch(() => null) as { error?: string } | null;
       throw new APIRequestError(apiErrorMessage(body?.error, response.status), response.status);
     }
   },
   async deleteMyAvatar(): Promise<void> {
-    if (!authToken) return;
-    const response = await fetch(`${baseURL}/v1/me/avatar`, { method: 'DELETE', headers: { Authorization: `Bearer ${authToken}` } });
+    if (!getAuthToken()) return;
+    const response = await fetch(`${baseURL}/v1/me/avatar`, { method: 'DELETE', headers: { Authorization: `Bearer ${getAuthToken()}` } });
     if (!response.ok) throw new APIRequestError('No pudimos quitar tu avatar.', response.status);
   },
   claimSession: (sessionId: string, playerId: string, hostToken: string) => request<{ status: 'ok' }>('/v1/me/claim-session', { method: 'POST', body: JSON.stringify({ sessionId, playerId, hostToken }) }),

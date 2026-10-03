@@ -5,29 +5,34 @@ import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton as Button } from '@/components/AppButton';
-import { AppBottomNav, type AppTab } from '@/components/AppBottomNav';
-import { useGameDiscovery } from '@/hooks/useGameDiscovery';
+import { AppBottomNav } from '@/components/AppBottomNav';
+import { useGameSearch } from '@/features/search/useGameSearch';
+import { navigateToTab } from '@/shared/navigation/tabs';
 import { buildGameDiscoveryEntries, type GameDiscoveryEntry } from '@/lib/gameDiscovery';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors, tokens } from '@/theme';
 
 export default function GamesScreen() {
-  const { flow } = useLocalSearchParams<{ flow?: string }>();
+  const { flow, query: initialQuery } = useLocalSearchParams<{ flow?: string; query?: string }>();
   const setup = flow === 'setup';
   const collection = useTableScoreStore((state) => state.collection);
   const availableRules = useTableScoreStore((state) => state.rules);
   const hasRestored = useTableScoreStore((state) => state.hasRestored);
-  const { query, changeQuery, search, searchResult, hasSearched } = useGameDiscovery();
+  const { query, changeQuery, search, searchFor, searchResult, hasSearched } = useGameSearch(initialQuery);
   const searching = hasSearched && (searchResult.isPending || searchResult.isFetching);
-  const localResults = collection.filter((game) => game.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const searchedAs = searching ? undefined : searchResult.data?.searchedAs;
+  const suggestedQuery = searching ? undefined : searchResult.data?.suggestedQuery;
+  // A corrected title also finds the collection and sheets saved on this device.
+  const matchTerm = (searchedAs ?? query).trim().toLocaleLowerCase();
+  const localResults = collection.filter((game) => game.name.toLocaleLowerCase().includes(matchTerm));
   const entries = hasSearched ? buildGameDiscoveryEntries(
     [...(searchResult.data?.games ?? []), ...localResults],
-    availableRules.filter((rule) => rule.gameName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())),
+    availableRules.filter((rule) => rule.gameName.toLocaleLowerCase().includes(matchTerm)),
     searchResult.data?.communityRules ?? [],
     searchResult.data?.rulebooks ?? [],
   ) : [];
   const noResults = hasSearched && !searching && !searchResult.error && entries.length === 0 && searchResult.data?.status !== 'processing';
-  const sourceError = searchResult.error || searchResult.data?.unavailableSources.length;
+  const sourceError = !!searchResult.error || !!searchResult.data?.unavailableSources.length;
 
   function openGame(entry: GameDiscoveryEntry) {
     const { game } = entry;
@@ -36,14 +41,6 @@ export default function GamesScreen() {
     else if (entry.communitySheets.length) router.push({ pathname: '/community/rules', params: { game: game.name } });
     else if (entry.rulebooks.length) router.push({ pathname: '/rulebooks', params: { game: game.name } });
     else router.push({ pathname: '/games/sources', params: { game: game.name, ...(setup ? { flow: 'setup' } : {}) } });
-  }
-
-  function selectTab(tab: AppTab) {
-    if (tab === 'home') router.navigate('/');
-    else if (tab === 'library') router.navigate('/library');
-    else if (tab === 'profile') router.navigate('/profile');
-    else if (tab === 'new-game') router.push('/sessions/new');
-    else router.navigate('/tables');
   }
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
@@ -60,6 +57,7 @@ export default function GamesScreen() {
         <TextInput mode="outlined" label="Buscar un juego" value={query} onChangeText={changeQuery} returnKeyType="search" onSubmitEditing={search} style={styles.searchInput} />
         <Text style={styles.searchHelp}>{hasSearched ? 'BGG, planillas y reglamentos consultados.' : 'Buscamos en tu colección, planillas, reglamentos y BGG.'}</Text>
         {!setup && <Button mode="contained" icon="magnify" loading={searching} disabled={searching || query.trim().length < 2} onPress={search}>Buscar juego</Button>}
+        {searchedAs && <Text style={styles.searchHelp}>Mostrando resultados para «{searchedAs}».</Text>}
         {searchResult.data?.status === 'processing' && <Text style={styles.searchHelp}>BGG está preparando resultados. Podés reintentar en {searchResult.data.retryAfterSeconds ?? 5} segundos.</Text>}
         {!searching && sourceError && <Text style={styles.searchHelp}>{searchResult.error ? 'No pudimos completar la búsqueda. Reintentá para consultar las fuentes.' : 'Algunas fuentes no respondieron. Mostramos las que encontramos; podés reintentar la búsqueda.'}</Text>}
       </View>}
@@ -73,11 +71,12 @@ export default function GamesScreen() {
         onPress={() => openGame(item)}
       />}
       ListFooterComponent={<View style={styles.footer}>
+        {noResults && suggestedQuery && <Pressable accessibilityRole="link" onPress={() => searchFor(suggestedQuery)}><Text style={styles.link}>¿Quisiste decir «{suggestedQuery}»? →</Text></Pressable>}
         {noResults && <Pressable accessibilityRole="link" onPress={() => changeQuery('')}><Text style={styles.link}>Buscar otro nombre →</Text></Pressable>}
         <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/games/sources', params: { ...(query.trim() ? { game: query.trim() } : {}), ...(setup ? { flow: 'setup' } : {}) } })}><Text style={styles.link}>Usar otra fuente →</Text></Pressable>
       </View>}
     />
-    {setup ? !hasSearched && <View style={styles.bottomAction}><Button mode="contained" icon="magnify" disabled={query.trim().length < 2} onPress={search}>Buscar juego</Button></View> : <AppBottomNav active="library" onSelect={selectTab} />}
+    {setup ? !hasSearched && <View style={styles.bottomAction}><Button mode="contained" icon="magnify" disabled={query.trim().length < 2} onPress={search}>Buscar juego</Button></View> : <AppBottomNav active="library" onSelect={navigateToTab} />}
   </SafeAreaView>;
 }
 

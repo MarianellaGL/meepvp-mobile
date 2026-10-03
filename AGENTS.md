@@ -39,3 +39,12 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Architecture
+
+- `src/app/` holds routes only: each screen composes a feature and stays thin.
+- `src/features/<feature>/` owns its API calls (`api.ts`), React Query hooks (`queries.ts`) and feature components. Current features: `search`, `games`, `collection`.
+- Server state lives in **React Query**; every cache key comes from `src/shared/api/queryKeys.ts`. Do not copy server data into Zustand.
+- **Zustand** (`src/stores/`) keeps only device state: sign-in, local drafts, host tokens, the person's name. `useTableScoreStore` still holds legacy server data; move it into features as screens are rebuilt.
+- HTTP goes through `src/shared/api/client.ts` (`request`, `APIRequestError`, Spanish error messages).
+- UI is built from **MeepleUI** (`@decodadev02/meepleui`) and its `tokens`. Layout primitives are `Screen` and `Section`/`Hint` in `src/shared/ui/`; bottom tabs go through `navigateToTab`.
