@@ -158,8 +158,15 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
             set({ knownPlayers });
             await saveLibrary({ username: savedLibrary.username, collection: savedLibrary.collection, scoringRules: get().rules, players: knownPlayers, myPlayerName: savedLibrary.myPlayerName });
           }
-        } catch {
-          set({ error: 'No pudimos recuperar tu última partida. Revisá la conexión y reintentá.' });
+        } catch (cause) {
+          // A game that no longer exists is forgotten quietly; only a failed connection is an error.
+          if (cause instanceof APIRequestError && cause.status === 404) {
+            set({ selfPlayerId: null });
+            if (table) await saveSessionForTable(table.code, null, null).catch(() => undefined);
+            else await saveSessionId(null).catch(() => undefined);
+          } else {
+            set({ error: 'No pudimos recuperar tu última partida. Revisá la conexión y reintentá.' });
+          }
         }
       }
     } catch {
@@ -374,11 +381,22 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     catch (error) { set({ error: error instanceof Error ? error.message : 'No pudimos cargar las planillas.' }); throw error; }
   },
   async createSession(ruleId, players) {
-    const { table } = get();
+    let table = get().table;
     if (!table) throw new Error('Primero creá una mesa.');
     set({ error: null });
     try {
-      const session = await api.createSession(table.code, table.hostToken, ruleId, players);
+      let session: ScoreSession;
+      try {
+        session = await api.createSession(table.code, table.hostToken, ruleId, players);
+      } catch (cause) {
+        // A table saved on this device may no longer exist on the server (deleted,
+        // or created against another server). Start a fresh table and retry once.
+        if (!(cause instanceof APIRequestError && cause.status === 404)) throw cause;
+        await get().createTable(table.name);
+        table = get().table;
+        if (!table) throw cause;
+        session = await api.createSession(table.code, table.hostToken, ruleId, players);
+      }
       const selfPlayerId = session.players[0]?.id ?? null;
       set({ session, selfPlayerId, tableSessions: { ...get().tableSessions, [table.code]: session } });
       const knownPlayers = [...get().knownPlayers];
