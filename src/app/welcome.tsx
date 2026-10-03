@@ -1,42 +1,45 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { MeepleLogo } from '@decodadev02/meepleui';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MeepleLogo, ScoreButton } from '@decodadev02/meepleui';
 import { router } from 'expo-router';
-import { Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppButton as Button } from '@/components/AppButton';
 import { useEntryStore } from '@/stores/useEntryStore';
-import { colors } from '@/theme';
+import { tokens } from '@/theme';
 
 export default function WelcomeScreen() {
   const continueAsGuest = useEntryStore((state) => state.continueAsGuest);
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.brandRow}><MeepleLogo size={48} /><Text style={styles.brand}>MEEPVP</Text></View>
-        <Text style={styles.title}>Tu partida empieza acá.</Text>
-        <Text style={styles.copy}>Llevá los puntos, compartí planillas y descubrí quién ganó. Elegí cómo querés entrar.</Text>
-
-        <View style={styles.actions}>
-          <Button mode="contained" icon="account-plus-outline" onPress={() => router.push({ pathname: '/auth', params: { mode: 'signup', entry: '1' } })}>Registrarse</Button>
-          <Button mode="outlined" icon="login" onPress={() => router.push({ pathname: '/auth', params: { entry: '1' } })}>Iniciar sesión</Button>
-          <Button mode="outlined" icon="account-outline" onPress={() => { continueAsGuest(); router.replace('/'); }}>Continuar sin cuenta</Button>
-          <Button mode="outlined" icon="qrcode-scan" onPress={() => { continueAsGuest(); router.push('/join'); }}>Unirse a una partida</Button>
-        </View>
-        <Text style={styles.note}>Podés jugar sin cuenta. Para guardar tus estadísticas y compartir planillas, registrate cuando quieras.</Text>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  return <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <View style={styles.content}>
+      <View style={styles.brand}>
+        <MeepleLogo size={56} />
+        <Text style={styles.wordmark}>MeepVP</Text>
+      </View>
+      <View style={styles.copy}>
+        <Text style={styles.title}>Reglas y puntos para cualquier juego de mesa.</Text>
+        <Text style={styles.lede}>Buscá un juego, armá su planilla y jugá con tu grupo. Sin cuenta.</Text>
+      </View>
+      <View style={styles.actions}>
+        <ScoreButton label="Empezar" icon="arrow-right" onPress={() => { continueAsGuest(); router.replace('/'); }} />
+        <ScoreButton label="Unirme a una partida" icon="qrcode-scan" variant="secondary" onPress={() => { continueAsGuest(); router.push('/join'); }} />
+        <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/auth', params: { entry: '1' } })} style={styles.account}>
+          <Text style={styles.accountText}>¿Ya tenés cuenta? <Text style={styles.accountLink}>Iniciar sesión</Text></Text>
+        </Pressable>
+      </View>
+    </View>
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  safe: { backgroundColor: colors.canvas, flex: 1 },
-  content: { flexGrow: 1, justifyContent: 'center', padding: 24, paddingBottom: 42 },
-  brandRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
-  brand: { color: colors.orangeInk, fontSize: 13, fontWeight: '800', letterSpacing: 2 },
-  title: { color: colors.ink, fontSize: 38, fontWeight: '800', letterSpacing: -1.5, lineHeight: 43, marginTop: 9 },
-  copy: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 14 },
-  actions: { gap: 12, marginTop: 36 },
-  note: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 28, textAlign: 'center' },
+  safe: { backgroundColor: tokens.color.canvas, flex: 1 },
+  content: { flex: 1, gap: tokens.space.xl, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: tokens.space.lg },
+  brand: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  wordmark: { color: tokens.color.gold, fontFamily: tokens.font.brand, fontSize: 28 },
+  copy: { gap: tokens.space.sm },
+  title: { color: tokens.color.primaryText, fontFamily: tokens.font.heading, fontSize: 30, lineHeight: 38 },
+  lede: { color: tokens.color.secondaryText, fontFamily: tokens.font.body, fontSize: 16, lineHeight: 23 },
+  actions: { gap: tokens.space.sm },
+  account: { alignItems: 'center', paddingVertical: tokens.space.sm },
+  accountText: { color: tokens.color.secondaryText, fontFamily: tokens.font.body, fontSize: 14 },
+  accountLink: { color: tokens.color.gold, fontFamily: tokens.font.semibold },
 });
