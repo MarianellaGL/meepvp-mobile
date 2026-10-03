@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { MeepleUIProvider } from '@decodadev02/meepleui';
@@ -17,6 +18,8 @@ export default function RootLayout() {
   }, [restore, restoreAuth]);
 
   useEffect(() => {
+    // Notification responses only exist on native platforms.
+    if (Platform.OS === 'web') return;
     const openReminder = (response: Notifications.NotificationResponse) => {
       if (response.notification.request.content.data?.url === '/schedule') router.push('/schedule');
     };

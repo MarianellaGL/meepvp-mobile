@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
-import { api, type Rulebook } from '@/lib/api';
+import { useImportRulebook } from '@/features/games/useImportRulebook';
+import { api } from '@/lib/api';
 
 export function useRulebookCatalog(initialGame = '') {
   const [query, setQuery] = useState(initialGame);
@@ -13,7 +14,7 @@ export function useRulebookCatalog(initialGame = '') {
     queryKey: ['rulebooks', submittedQuery, language],
     queryFn: () => api.searchRulebooks(submittedQuery, language),
   });
-  const importRulebook = useMutation({ mutationFn: (book: Rulebook) => api.extractRulebook(book.id) });
+  const importRulebook = useImportRulebook();
 
   function search() {
     const next = query.trim();

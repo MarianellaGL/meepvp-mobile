@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { type Rulebook } from '@/lib/api';
 import { useRulebookCatalog } from '@/hooks/useRulebookCatalog';
-import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { AppButton as Button } from '@/components/AppButton';
 import { colors } from '@/theme';
 
@@ -16,18 +15,12 @@ export default function RulebookCatalogScreen() {
   const { query, setQuery, language, changeLanguage, searched, search, catalog, importRulebook } = useRulebookCatalog(game);
   const books = catalog.data?.results ?? [];
   const loading = catalog.isFetching;
-  const importing = importRulebook.isPending ? importRulebook.variables?.id : null;
+  const importing = importRulebook.isPending ? importRulebook.variables?.book.id : null;
   const error = importRulebook.error ?? catalog.error;
-  const setPDFDraft = useTableScoreStore((state) => state.setPDFDraft);
   const [showSearch, setShowSearch] = useState(!game);
 
-  async function importBook(book: Rulebook) {
-    try {
-      const document = await importRulebook.mutateAsync(book);
-      setPDFDraft(document);
-      const selectedGame = game || document.scoringSuggestion?.gameName || book.name.replace(/\s+Rulebook$/i, '');
-      router.push({ pathname: '/pdf/reader', params: { rulebookId: book.id, game: selectedGame, ...(gameId ? { gameId } : {}) } });
-    } catch { /* Mutation error is displayed below. */ }
+  function importBook(book: Rulebook) {
+    importRulebook.mutate({ book, context: { game, gameId } });
   }
 
   return <SafeAreaView style={styles.safe} edges={['top']}>
