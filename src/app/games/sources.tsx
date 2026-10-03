@@ -1,9 +1,9 @@
-import { MeepleImportProcessing, MeepleLibraryEntry, MeepleSourceOption } from '@decodadev02/meepleui';
+import { MeepleImportProcessing, MeepleSourceOption } from '@decodadev02/meepleui';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useGame } from '@/features/games/queries';
 import { useImportRulebook } from '@/features/games/useImportRulebook';
-import { Hint, Section } from '@/shared/ui/Section';
+import { Hint } from '@/shared/ui/Section';
 import { Screen } from '@/shared/ui/Screen';
 
 export default function GameSourcesScreen() {
@@ -15,9 +15,7 @@ export default function GameSourcesScreen() {
 
   return <Screen eyebrow={flow === 'setup' ? 'PARTIDA · PLANILLA' : 'CREAR PLANILLA'} title="¿De dónde salen los puntos?" subtitle={game ? `Elegí cómo armar la planilla de ${game}.` : 'Elegí cómo armar la planilla.'} onBack={() => router.back()}>
     {importRulebook.isPending ? <MeepleImportProcessing source="pdf" /> : <>
-      {rulebook && <Section label="RECOMENDADO">
-        <MeepleLibraryEntry title="Desde el reglamento" detail={rulebook.name} onPress={() => importRulebook.mutate({ book: rulebook, context: { game, gameId, flow } })} />
-      </Section>}
+      {rulebook && <MeepleSourceOption source="rulebook" recommended detail={rulebook.name} onPress={() => importRulebook.mutate({ book: rulebook, context: { game, gameId, flow } })} />}
       {importRulebook.error && <Hint tone="error">{importRulebook.error.message}</Hint>}
       <MeepleSourceOption source="pdf" selected={!rulebook} onPress={() => router.push({ pathname: '/pdf/reader', params })} />
       <MeepleSourceOption source="photo" onPress={() => router.push({ pathname: '/images/reader', params })} />
