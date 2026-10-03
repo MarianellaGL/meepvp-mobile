@@ -50,6 +50,7 @@ type TableScoreState = {
   isFinishingSession: boolean;
   isPausingSession: boolean;
   isResumingSession: boolean;
+  isStartingSession: boolean;
   isUploadingBoardPhoto: boolean;
   isReopeningSession: boolean;
   isJoiningSession: boolean;
@@ -81,6 +82,7 @@ type TableScoreState = {
   finishSession: () => Promise<void>;
   pauseSession: () => Promise<void>;
   resumeSession: () => Promise<void>;
+  startSession: () => Promise<void>;
   saveBoardPhoto: (asset: ImagePickerAsset) => Promise<void>;
   reopenSession: () => Promise<void>;
   clearError: () => void;
@@ -113,6 +115,7 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
   isFinishingSession: false,
   isPausingSession: false,
   isResumingSession: false,
+  isStartingSession: false,
   isUploadingBoardPhoto: false,
   isReopeningSession: false,
   isJoiningSession: false,
@@ -517,6 +520,15 @@ export const useTableScoreStore = create<TableScoreState>((set, get) => ({
     try { set({ session: await api.pauseSession(session.id, table.hostToken) }); }
     catch (cause) { set({ error: cause instanceof Error ? cause.message : 'No pudimos pausar la partida.' }); throw cause; }
     finally { set({ isPausingSession: false }); }
+  },
+  async startSession() {
+    const { session, table, isStartingSession } = get();
+    if (!session || session.status !== 'waiting' || isStartingSession) return;
+    if (!table || table.code !== session.tableCode) throw new Error('Solo el anfitrión puede empezar esta partida.');
+    set({ isStartingSession: true, error: null });
+    try { set({ session: await api.startSession(session.id, table.hostToken) }); }
+    catch (cause) { set({ error: cause instanceof Error ? cause.message : 'No pudimos empezar la partida.' }); throw cause; }
+    finally { set({ isStartingSession: false }); }
   },
   async resumeSession() {
     const { session, table, isResumingSession } = get();

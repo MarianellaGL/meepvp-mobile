@@ -20,7 +20,7 @@ export default function HomeScreen() {
   const session = useTableScoreStore((state) => state.session);
   const [query, setQuery] = useState('');
   const current = session && session.status !== 'finished' ? session : null;
-  const currentGame = current ? rules.find((rule) => rule.id === current.ruleId)?.gameName ?? 'Partida' : null;
+  const currentGame = current ? rules.find((rule) => rule.id === current.ruleId)?.gameName ?? current.rule?.gameName ?? 'Partida' : null;
 
   function search() {
     if (query.trim().length >= 2) router.push({ pathname: '/games', params: { query: query.trim() } });
@@ -37,7 +37,7 @@ export default function HomeScreen() {
   >
     <ScoreTextField label="Buscá un juego o una regla" placeholder="Everdell, Catan…" value={query} onChangeText={setQuery} returnKeyType="search" onSubmitEditing={search} />
 
-    {current && <Section label={current.status === 'paused' ? 'PARTIDA PAUSADA' : 'PARTIDA EN CURSO'}>
+    {current && <Section label={current.status === 'paused' ? 'PARTIDA PAUSADA' : current.status === 'waiting' ? 'ESPERANDO JUGADORES' : 'PARTIDA EN CURSO'}>
       <MeepleLibraryEntry title={currentGame!} detail={`Mesa ${current.tableCode} · Volver a la partida`} onPress={() => router.push(`/sessions/${current.id}`)} />
     </Section>}
 
