@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScoreButton } from '@decodadev02/meepleui';
 
 import { HostActions } from '@/features/sessions/components/HostActions';
 import { useLiveDuration } from '@/features/sessions/components/LiveDuration';
-import { ScoreSheet } from '@/features/sessions/components/ScoreSheet';
-import { Standings } from '@/features/sessions/components/Standings';
+import { CellEditor } from '@/features/sessions/components/CellEditor';
+import { SheetGrid } from '@/features/sessions/components/SheetGrid';
+import { buildSheet, type SheetRow } from '@/features/sessions/sheet';
 import { WaitingRoom } from '@/features/sessions/WaitingRoom';
 import { useBoardPhotoPicker } from '@/hooks/useBoardPhotoPicker';
 import { useSessionLiveSync } from '@/hooks/useSessionLiveSync';
@@ -20,6 +21,7 @@ import { tokens } from '@/theme';
 export default function GameScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const attemptedHostJoin = useRef(new Set<string>());
+  const [editing, setEditing] = useState<{ rowId: string; playerIndex: number } | null>(null);
   const {
     session, table, rules, selfPlayerId, myPlayerName, username, loadRules, loadSession, refreshSession, updateScore, adjustPoints, finishSession, pauseSession, resumeSession, startSession, saveBoardPhoto, reopenSession, joinSessionAsMe, error,
     isRestoring, isLoadingSession, isUpdatingScore, isAdjustingPoints, isFinishingSession, isPausingSession, isResumingSession, isStartingSession, isUploadingBoardPhoto, isReopeningSession, isJoiningSession,
@@ -74,8 +76,26 @@ export default function GameScreen() {
   const isPaused = session.status === 'paused';
   const busy = isUpdatingScore || isAdjustingPoints || isFinishingSession || isPausingSession || isResumingSession || isUploadingBoardPhoto;
   const selfPlayer = session.players.find((player) => player.id === selfPlayerId);
-  const myTotal = selfPlayer ? session.totals.find((item) => item.playerId === selfPlayer.id)?.total ?? 0 : 0;
   const winners = isFinished ? (session.winners ?? []).map((result) => ({ ...result, name: session.players.find((player) => player.id === result.playerId)?.name ?? 'Jugador' })) : [];
+  const sheet = buildSheet(rule, session);
+  // Like a paper sheet, whoever is at the table can fill any square.
+  const canScore = session.status === 'active' && (isHost || !!selfPlayer);
+  const editRow = editing ? sheet.rows.find((row) => row.id === editing.rowId) : undefined;
+  const editPlayer = editing ? session.players[editing.playerIndex] : undefined;
+
+  function editCell(row: SheetRow, playerIndex: number) {
+    if (busy) return;
+    const player = session!.players[playerIndex];
+    // A yes/no category flips on tap; there is nothing to type.
+    if (row.kind === 'checkbox') updateScore(player.id, row.id, row.cells[playerIndex].value > 0 ? 0 : 1).catch(() => undefined);
+    else setEditing({ rowId: row.id, playerIndex });
+  }
+
+  async function saveCell(row: SheetRow, playerIndex: number, value: number) {
+    const player = session!.players[playerIndex];
+    if (row.kind === 'other') await adjustPoints(player.id, value - row.cells[playerIndex].value);
+    else await updateScore(player.id, row.id, value);
+  }
 
   const footer = isHost && isPaused
     ? <ScoreButton label="Reanudar partida" icon="play" loading={isResumingSession} disabled={busy} onPress={() => resumeSession().catch(() => undefined)} />
@@ -92,8 +112,16 @@ export default function GameScreen() {
       <Hint>{winners[0].total} puntos · {rule.winCondition === 'lowest_total' ? 'gana quien suma menos' : 'gana quien suma más'}</Hint>
     </Section>}
 
-    <Section label={isFinished ? 'POSICIONES FINALES' : 'POSICIONES'}>
-      <Standings session={session} rule={rule} selfPlayerId={selfPlayerId} />
+    <Section label="PLANILLA">
+      <SheetGrid sheet={sheet} selfPlayerId={selfPlayerId} onEdit={canScore ? editCell : undefined} />
+      {canScore && <Hint>Tocá un casillero para anotar. Cualquiera en la mesa puede completar la planilla.</Hint>}
+      {isPaused && <Hint>Se anota cuando el anfitrión reanude la partida.</Hint>}
+      {session.status === 'active' && !selfPlayer && (isHost
+        ? <>
+            <Hint>{isJoiningSession ? `Sumándote a la mesa como ${selfName}…` : `Vas a anotar como ${selfName}.`}</Hint>
+            {error && <ScoreButton label="Reintentar" icon="refresh" variant="secondary" onPress={() => joinSessionAsMe(selfName).catch(() => undefined)} />}
+          </>
+        : <ScoreButton label="Unirme para anotar" icon="account-plus-outline" variant="secondary" onPress={() => router.push({ pathname: '/join', params: { code: session.tableCode } })} />)}
     </Section>
 
     {isPaused && <Section label="PARTIDA PAUSADA">
@@ -110,29 +138,6 @@ export default function GameScreen() {
       <Hint>{new Date(session.boardPhotoUpdatedAt).toLocaleString('es-AR')}</Hint>
     </Section>}
 
-    {/* A finished game shows the result; scores come back when it is reopened. */}
-    {isFinished ? null : selfPlayer ? <Section label={`TUS PUNTOS · ${myTotal}`}>
-      <ScoreSheet
-        fields={rule.fields}
-        values={session.values[selfPlayer.id] ?? {}}
-        manualPoints={session.manualPoints?.[selfPlayer.id] ?? 0}
-        disabled={session.status !== 'active' || busy}
-        onScore={(fieldId, value) => updateScore(selfPlayer.id, fieldId, value)}
-        onAdjust={(delta) => adjustPoints(selfPlayer.id, delta)}
-      />
-      {isPaused && <Hint>Se anota cuando el anfitrión reanude la partida.</Hint>}
-    </Section> : <Section label="TUS PUNTOS">
-      {isHost
-        ? <>
-            <Hint>{isJoiningSession ? `Sumándote a la mesa como ${selfName}…` : `Vas a anotar como ${selfName}.`}</Hint>
-            {error && <ScoreButton label="Reintentar" icon="refresh" variant="secondary" onPress={() => joinSessionAsMe(selfName).catch(() => undefined)} />}
-          </>
-        : <>
-            <Hint>Unite con tu nombre para anotar tus puntos.</Hint>
-            <ScoreButton label="Unirme a la partida" icon="account-plus-outline" variant="secondary" onPress={() => router.push({ pathname: '/join', params: { code: session.tableCode } })} />
-          </>}
-    </Section>}
-
     {isHost && session.status === 'active' && <HostActions
       tableCode={session.tableCode}
       busy={busy}
@@ -140,6 +145,17 @@ export default function GameScreen() {
       finishing={isFinishingSession}
       onPause={() => pauseSession().catch(() => undefined)}
       onFinish={() => finishSession().catch(() => undefined)}
+    />}
+
+    {editRow && editPlayer && editing && <CellEditor
+      key={`${editRow.id}:${editPlayer.id}`}
+      row={editRow}
+      playerName={editPlayer.name}
+      value={editRow.cells[editing.playerIndex].value}
+      nextPlayerName={session.players[editing.playerIndex + 1]?.name}
+      onSave={(value) => saveCell(editRow, editing.playerIndex, value)}
+      onNext={() => setEditing({ rowId: editRow.id, playerIndex: editing.playerIndex + 1 })}
+      onClose={() => setEditing(null)}
     />}
   </Screen>;
 }
