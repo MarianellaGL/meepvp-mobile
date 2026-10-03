@@ -6,6 +6,7 @@ import { IconButton, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BGGImportSection } from '@/features/collection/BGGImportSection';
+import { openSheetEditor } from '@/features/sheets/openSheetEditor';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
 import { colors } from '@/theme';
 
@@ -51,7 +52,7 @@ export default function LibraryScreen() {
 
         {!!savedPDFs.length && <View style={styles.savedSection}>
           <Text style={styles.sectionLabel}>REGLAMENTOS GUARDADOS</Text>
-          {savedPDFs.map((pdf) => <MeepleLibraryEntry key={pdf.gameId ?? pdf.gameName} title={pdf.gameName} detail={pdf.document.fileName} onPress={() => router.push({ pathname: '/pdf/reader', params: { game: pdf.gameName, ...(pdf.gameId ? { gameId: String(pdf.gameId) } : {}) } })} />)}
+          {savedPDFs.map((pdf) => <MeepleLibraryEntry key={pdf.gameId ?? pdf.gameName} title={pdf.gameName} detail={pdf.document.fileName} onPress={() => openSheetEditor(pdf.document, { game: pdf.gameName, ...(pdf.gameId ? { gameId: String(pdf.gameId) } : {}) })} />)}
         </View>}
 
         <BGGImportSection />
