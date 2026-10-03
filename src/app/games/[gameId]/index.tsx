@@ -4,6 +4,7 @@ import { MeepleLibraryEntry, ScoreButton, ScoreSkeleton, ScoreTextField } from '
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { useGame, useGameSheets } from '@/features/games/queries';
+import { openSheetEditor } from '@/features/sheets/openSheetEditor';
 import { Hint, Section } from '@/shared/ui/Section';
 import { Screen } from '@/shared/ui/Screen';
 import { useTableScoreStore } from '@/stores/useTableScoreStore';
@@ -53,7 +54,7 @@ export default function GameScreen() {
       {game.isPending && !sheets.length ? <ScoreSkeleton variant="list" /> : sheets.length ? sheets.map((sheet) => (
         <MeepleLibraryEntry key={sheet.id} title={sheet.name} detail={`${sheet.fields.length} categorías · Jugar`} onPress={() => router.push({ pathname: '/sessions/new', params: { ruleId: sheet.id } })} />
       )) : <Hint>Todavía no hay planillas para este juego. Creá la primera.</Hint>}
-      {savedPDF && <MeepleLibraryEntry title="PDF guardado" detail={savedPDF.document.fileName} onPress={() => router.push({ pathname: '/pdf/reader', params: gameParams })} />}
+      {savedPDF && <MeepleLibraryEntry title="PDF guardado" detail={savedPDF.document.fileName} onPress={() => openSheetEditor(savedPDF.document, gameParams)} />}
     </Section>
   </Screen>;
 }
